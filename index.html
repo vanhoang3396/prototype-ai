@@ -264,6 +264,89 @@ kbd{font-family:var(--f-mono);font-size:12px;border:1px solid var(--line);border
   .phone{height:700px;max-height:none;border-radius:36px;padding:8px}
   .screen{border-radius:28px}
 }
+/* ===== Phong cách "Ask DoorDash" cho nhóm use case Đặt món (.screen.dd) ===== */
+.screen.dd{--a-bg:#ffffff;--a-card:#ffffff;--a-ink:#191919;--a-mute:#6b6b6b;--a-line:#e8e8e8;
+  --a-acc:#eb1700;--a-acc-d:#c41300;--a-soft:#f6f6f6;--a-ink-on:#ffffff;--a-star:#191919;--a-good:#0a7a3d;--a-good-soft:#e8f6ee;
+  --a-warn-soft:#fff4e5;--a-bad-soft:#fdecea}
+.dd .sbar{padding-bottom:0}
+.dd .ahead{background:#fff;border-bottom:0;padding:6px 14px 10px}
+.dd .av{background:#eb1700;width:32px;height:32px;font-size:0}
+.dd .av::before{content:"✦";font-size:16px;color:#fff}
+.dd .ahead b{font-size:16px;font-weight:700;letter-spacing:-.01em}
+.dd .ahead .newc{border:0;background:#f2f2f2;font-weight:600;color:#191919}
+.dd .chat{padding:6px 14px;gap:14px}
+.dd .msg.u{background:#f2f2f2;color:#191919;border-radius:20px 20px 6px 20px;padding:9px 14px;font-size:14px}
+.dd .msg.b{gap:12px}
+.dd .b-text{background:transparent;border:0;padding:0 2px;max-width:100%;font-size:14.5px;line-height:1.5}
+.dd .b-text b{font-weight:700}
+.dd .status{color:#6b6b6b;font-weight:500}
+.dd .dots i{background:#eb1700}
+.dd .btn{border:0;background:#f2f2f2;color:#191919;border-radius:999px;padding:8px 14px;font-weight:700;font-size:13px}
+.dd .btn.p{background:#eb1700;color:#fff}
+.dd .btn.ghost{background:#f2f2f2;color:#191919;font-weight:600}
+.dd .btn:hover{filter:none;background:#e6e6e6}
+.dd .btn.p:hover{background:#c41300}
+.dd .card .ctas{flex-wrap:nowrap}
+.dd .card .ctas .btn.p{flex:1}
+.dd .card{border:1px solid #e8e8e8;border-radius:18px;padding:14px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.dd .card h4{font-size:15px;font-weight:700}
+.dd .tot{border-top:1px solid #e8e8e8;border-top-style:solid;font-size:14px}
+.dd .tile{background:hsl(var(--h) 75% 93%);color:#191919}
+.dd .tile::after{display:none}
+.dd .tile .em{font-size:1.9em;line-height:1;filter:drop-shadow(0 2px 3px rgba(0,0,0,.12))}
+/* Thẻ quán: ảnh lớn bo tròn, thông tin nằm dưới ảnh, không viền */
+.dd .hscroll{gap:12px}
+.dd .pc{flex:0 0 252px;border:0;background:transparent;border-radius:0;overflow:visible}
+.dd .pc-img{height:148px;border-radius:18px;font-size:42px}
+.dd .pc-img .eta{left:10px;bottom:10px;background:#fff;color:#191919;font-weight:700;font-size:11.5px;padding:3px 9px;box-shadow:0 1px 3px rgba(0,0,0,.18)}
+.dd .pc-body{padding:9px 2px 0;gap:2px}
+.dd .pc-top b{font-size:15px;font-weight:700}
+.dd .rt{font-size:12.5px;font-weight:700}
+.dd .rt::first-letter{color:inherit}
+.dd .meta{font-size:12.5px}
+.dd .open{font-size:12px;color:#6b6b6b}
+.dd .open.bad{color:#b42318}
+.dd .ok{color:#0a7a3d;font-weight:600}
+.dd .why{background:#f7f7f7;color:#191919;border-radius:10px;padding:6px 10px;margin-top:5px;font-size:12.5px;line-height:1.4}
+.dd .why::before{content:"✦ ";color:#eb1700;font-weight:700}
+/* Món: ảnh bo tròn, giá đậm */
+.dd .dish{grid-template-columns:60px minmax(0,1fr) auto;gap:10px}
+.dd .dish .tile{width:60px;height:60px;border-radius:12px;font-size:20px}
+.dd .dish .nm{font-weight:600;font-size:13.5px}
+.dd .gal{gap:12px 10px}
+.dd .gal .g{border:0;background:transparent;overflow:visible}
+.dd .gal .tile{aspect-ratio:1/1;border-radius:16px;font-size:36px}
+.dd .gal .gi{padding:7px 2px 0;font-size:13px;font-weight:600}
+.dd .gal .gi .row .btn{width:32px;height:32px;padding:0;font-size:0;background:#fff;border:1px solid #e0e0e0;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.dd .gal .gi .row .btn::before{content:"+";font-size:20px;line-height:30px;color:#191919;font-weight:500}
+.dd .li.add{background:#e8f6ee}
+.dd .li.rec{background:#f6f6f6}
+.dd .tag{background:#f2f2f2;color:#191919}
+.dd .tag.g{background:#e8f6ee;color:#0a7a3d}
+.dd .tag.bad{background:#fdecea;color:#b42318}
+/* Gợi ý nhanh và ô nhập */
+.dd .sugg{padding:8px 14px 6px;gap:8px}
+.dd .sugg button{background:#fff;border:1px solid #d6d6d6;color:#191919;border-radius:999px;font-weight:600;padding:8px 14px}
+.dd .sugg button:not(.rs)::before{content:"✦ ";color:#eb1700}
+.dd .sugg button.rs{background:#f2f2f2;border-color:transparent;color:#6b6b6b}
+.dd .comp{background:#fff;padding:6px 14px 16px}
+.dd .comp input{background:#f2f2f2;border:0;border-radius:999px;padding:12px 16px}
+.dd .comp input.listen{background:#fff0ee;box-shadow:0 0 0 1.5px #eb1700}
+.dd .ib{background:#f2f2f2;border:0;color:#191919}
+.dd .ib.send{background:#eb1700;color:#fff}
+.dd .vhint{color:#eb1700}
+.dd .wave i{background:#eb1700}
+/* Màn native: điền sẵn, nút đỏ giống checkout DoorDash */
+.dd .native{background:#fff}
+.dd .nhead{background:#fff;border-bottom:0}
+.dd .nhead b{font-size:16px}
+.dd .nbanner{background:#f6f6f6;color:#191919;border-radius:12px}
+.dd .ai{background:#fff0ee;color:#c41300}
+.dd .nf{border-radius:16px}
+.dd .nfoot{border-top:1px solid #e8e8e8}
+.dd .nfoot .btn.block{border-radius:999px;padding:13px;font-size:15px}
+.dd .toast{background:#191919}
+.dd .msg.b>.ctas .btn.p{flex:1;padding:12px;font-size:14px}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 </style>
 
@@ -872,7 +955,10 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const hue=s=>{let h=0;for(const c of s)h=(h*31+c.charCodeAt(0))%360;return h};
 const ini=s=>s.split(/\s+/).filter(w=>/^[A-ZÀ-Ỹ]/u.test(w)).slice(0,2).map(w=>w[0]).join('')||s[0];
-const tile=(name,cls='',extra='')=>`<div class="tile ${cls}" style="--h:${hue(name)}">${esc(ini(name))}${extra}</div>`;
+const EMO=[[/bento|cơm hộp/i,'🍱'],[/lẩu/i,'🍲'],[/mì ý|spaghetti/i,'🍝'],[/phở|bún|mì|miến|hủ tiếu/i,'🍜'],[/cháo/i,'🥣'],[/xôi/i,'🍙'],[/trà|tea|sữa/i,'🧋'],[/cà phê/i,'☕'],[/poke|bowl|salad|healthy/i,'🥗'],[/bánh mì/i,'🥖'],[/nem|chả giò/i,'🥟'],[/gà/i,'🍗'],[/cá/i,'🐟'],[/bò|thịt|sườn|nướng/i,'🥩'],[/canh/i,'🥘'],[/rau/i,'🥬'],[/chay|đậu/i,'🥦'],[/cơm/i,'🍚']];
+const emo=n=>(EMO.find(([r])=>r.test(n))||[0,'🍽️'])[1];
+let FOODUI=false;
+const tile=(name,cls='',extra='')=>`<div class="tile ${cls}" style="--h:${hue(name)}">${FOODUI?`<span class="em" aria-hidden="true">${emo(name)}</span>`:esc(ini(name))}${extra}</div>`;
 const REG=[];
 const cta=c=>{REG.push(c);return `<button type="button" class="btn ${c.p?'p':''} ${c.g?'ghost':''}" data-cta="${REG.length-1}">${esc(c.l)}</button>`};
 const ctas=list=>list&&list.length?`<div class="ctas">${list.map(cta).join('')}</div>`:'';
@@ -1055,11 +1141,12 @@ function openNative(n){
   renderHandoff(n,'open');
 }
 
-function resetChat(){clearInterval(vTimer);$('#mic').classList.remove('rec');input.placeholder='Nhắn cho trợ lý…';chat.innerHTML='';REG.length=0;closeNative();input.value='';input.classList.remove('listen');$('#vhint').hidden=true}
+const PH=()=>FOODUI?'Hỏi về món ăn, quán, ngân sách…':'Nhắn cho trợ lý…';
+function resetChat(){clearInterval(vTimer);$('#mic').classList.remove('rec');input.placeholder=PH();chat.innerHTML='';REG.length=0;closeNative();input.value='';input.classList.remove('listen');$('#vhint').hidden=true}
 
 function select(id){
   const u=UC.find(x=>x.id===id); if(!u)return;
-  cur=u; step=0; busy=false; resetChat();
+  cur=u; step=0; busy=false; FOODUI=u.g==='6'; $('#screen').classList.toggle('dd',FOODUI); resetChat();
   renderNav(); renderInfo(); renderIntent(null); renderHandoff(null);
   try{history.replaceState(null,'','#uc'+id)}catch(e){}
   playTurn();
@@ -1071,7 +1158,7 @@ function startVoice(t){
   $('#vhint').hidden=false; $('#vhint').innerHTML='<span class="wave">'+Array.from({length:14},(_,i)=>`<i style="animation-delay:${(i%5)*.12}s"></i>`).join('')+'</span>';
   sugg.innerHTML='';
   const words=t.u.split(' '); let i=0; clearInterval(vTimer);
-  vTimer=setInterval(()=>{input.value=words.slice(0,++i).join(' ');if(i>=words.length){clearInterval(vTimer);mic.classList.remove('rec');input.placeholder='Nhắn cho trợ lý…';$('#vhint').textContent='Đã nhận giọng nói. Sửa chữ nếu cần rồi bấm gửi.';input.focus();}},reduce?0:170);
+  vTimer=setInterval(()=>{input.value=words.slice(0,++i).join(' ');if(i>=words.length){clearInterval(vTimer);mic.classList.remove('rec');input.placeholder=PH();$('#vhint').textContent='Đã nhận giọng nói. Sửa chữ nếu cần rồi bấm gửi.';input.focus();}},reduce?0:170);
 }
 
 /* Free text router */
