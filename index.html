@@ -1,0 +1,1135 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Trợ lý AI trên GSM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: lộ trình use case (trái) · điện thoại demo (giữa) · panel giải thích cho business owner (phải) */
+:root{
+  --bg:#eef2f1; --surface:#ffffff; --ink:#122120; --mute:#5a6d6b; --line:#d6e0de;
+  --accent:#007f7a; --accent-soft:#d9efec; --accent-ink:#ffffff; --frame:#1a2423;
+  --f-ui:"Be Vietnam Pro",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  /* App mock: luôn hiển thị giao diện sáng như app thật */
+  --a-bg:#f3f6f6; --a-card:#ffffff; --a-ink:#132322; --a-mute:#5f7473; --a-line:#e1e9e8;
+  --a-acc:#00a19a; --a-acc-d:#00807a; --a-soft:#e2f5f3; --a-ink-on:#ffffff;
+  --a-warn:#9a4a00; --a-warn-soft:#fff3e2; --a-bad:#b42318; --a-bad-soft:#fdecea; --a-good:#127a3b; --a-good-soft:#e5f6ec;
+  --a-star:#e8a100;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0d1716; --surface:#15201f; --ink:#e3eeec; --mute:#94a8a5; --line:#273634;
+  --accent:#41c6be; --accent-soft:#163936; --accent-ink:#04201e; --frame:#000000; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0d1716; --surface:#15201f; --ink:#e3eeec; --mute:#94a8a5; --line:#273634;
+  --accent:#41c6be; --accent-soft:#163936; --accent-ink:#04201e; --frame:#000000; color-scheme:dark}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-ui);font-size:14px;line-height:1.5;padding-inline:16px;padding-block:20px 32px}
+button{font:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+
+.top{max-width:1440px;margin:0 auto 18px;display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+.top h1{margin:0;font-size:26px;font-weight:700;letter-spacing:-.01em;text-wrap:balance}
+.top p{margin:2px 0 0;color:var(--mute);max-width:62ch}
+.keys{display:flex;align-items:center;gap:6px;color:var(--mute);font-size:13px}
+kbd{font-family:var(--f-mono);font-size:12px;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:1px 6px;background:var(--surface);color:var(--ink)}
+
+.wrap{max-width:1440px;margin:0 auto;display:grid;grid-template-columns:300px 390px minmax(0,1fr);gap:24px;align-items:start}
+
+/* NAV */
+.nav{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden;position:sticky;top:12px;max-height:calc(100vh - 24px);display:flex;flex-direction:column}
+.filters{display:flex;flex-wrap:wrap;gap:6px;padding:12px;border-bottom:1px solid var(--line)}
+.filters button{border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:999px;padding:3px 10px;font-size:12.5px}
+.filters button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.navlist{overflow:auto;padding:4px 0 10px}
+.ng{padding:10px 12px 2px}
+.ng h3{margin:0;font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--mute);font-weight:600;display:flex;gap:6px}
+.ni{display:grid;grid-template-columns:38px minmax(0,1fr) auto;gap:6px;align-items:start;width:100%;text-align:left;border:0;background:transparent;color:var(--ink);padding:7px 12px;border-left:3px solid transparent}
+.ni:hover{background:var(--accent-soft)}
+.ni[aria-current="true"]{background:var(--accent-soft);border-left-color:var(--accent)}
+.ni .id{font-family:var(--f-mono);font-size:12px;color:var(--mute);padding-top:1px}
+.ni .tt{font-size:13px;line-height:1.35}
+.ni .mo{font-size:11px;color:var(--mute);white-space:nowrap;padding-top:2px}
+.pri{display:inline-block;font-family:var(--f-mono);font-size:10.5px;font-weight:600;border-radius:4px;padding:0 4px;margin-left:4px;vertical-align:1px}
+.pri.p1{background:var(--accent);color:var(--accent-ink)}
+.pri.p2{border:1px solid var(--mute);color:var(--mute)}
+.navsel{display:none}
+
+/* PHONE */
+.phonecol{position:sticky;top:12px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.phone{width:375px;max-width:100%;height:780px;max-height:calc(100vh - 70px);min-height:560px;background:var(--frame);border-radius:44px;padding:11px;box-shadow:0 20px 50px -20px rgba(0,40,38,.45)}
+.screen{position:relative;height:100%;border-radius:34px;overflow:hidden;background:var(--a-bg);color:var(--a-ink);display:flex;flex-direction:column}
+.sbar{display:flex;justify-content:space-between;padding:12px 26px 4px;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--a-ink)}
+.ahead{display:flex;align-items:center;gap:10px;padding:8px 14px 10px;background:var(--a-card);border-bottom:1px solid var(--a-line)}
+.av{width:34px;height:34px;border-radius:50%;background:var(--a-acc);color:var(--a-ink-on);display:grid;place-items:center;font-weight:700;font-size:13px;flex:none}
+.ahead b{display:block;font-size:14.5px}
+.ahead small{color:var(--a-mute);font-size:12px}
+.ahead .newc{margin-left:auto;border:1px solid var(--a-line);background:var(--a-card);color:var(--a-ink);border-radius:999px;font-size:11.5px;padding:3px 9px}
+.chat{flex:1;overflow-y:auto;padding:12px 12px 6px;display:flex;flex-direction:column;gap:10px;scroll-behavior:smooth}
+.msg{max-width:88%;font-size:13.5px;line-height:1.45}
+.msg.u{align-self:flex-end;background:var(--a-acc);color:var(--a-ink-on);padding:8px 12px;border-radius:16px 16px 4px 16px}
+.msg.b{align-self:stretch;max-width:100%;display:flex;flex-direction:column;gap:8px}
+.b-text{background:var(--a-card);border:1px solid var(--a-line);padding:9px 12px;border-radius:4px 16px 16px 16px;max-width:92%}
+.b-text b{font-weight:600}
+.status{align-self:flex-start;font-size:12.5px;color:var(--a-mute);display:flex;align-items:center;gap:8px;padding:2px 4px}
+.dots{display:inline-flex;gap:3px}
+.dots i{width:5px;height:5px;border-radius:50%;background:var(--a-acc);animation:bl 1s infinite}
+.dots i:nth-child(2){animation-delay:.15s}.dots i:nth-child(3){animation-delay:.3s}
+@keyframes bl{0%,80%,100%{opacity:.25}40%{opacity:1}}
+.sys{align-self:center;font-size:11.5px;color:var(--a-mute);background:var(--a-card);border:1px solid var(--a-line);border-radius:999px;padding:2px 10px}
+
+.card{background:var(--a-card);border:1px solid var(--a-line);border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.card h4{margin:0;font-size:13px;font-weight:600}
+.card .sub{font-size:12px;color:var(--a-mute)}
+.row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.hscroll{display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:4px;margin-inline:-12px;padding-inline:12px}
+.hscroll::-webkit-scrollbar{height:0}
+.tile{background:linear-gradient(135deg,hsl(var(--h) 60% 62%),hsl(calc(var(--h) + 35) 55% 42%));color:#fff;display:grid;place-items:center;font-weight:700;letter-spacing:.02em;position:relative;overflow:hidden}
+.tile::after{content:"";position:absolute;width:70%;aspect-ratio:1;border-radius:50%;background:rgba(255,255,255,.14);right:-18%;bottom:-30%}
+.pc{flex:0 0 236px;scroll-snap-align:start;background:var(--a-card);border:1px solid var(--a-line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column}
+.pc.dim{opacity:.92}
+.pc-img{height:92px;font-size:22px}
+.pc-img .eta{position:absolute;left:8px;bottom:8px;background:rgba(0,0,0,.55);color:#fff;font-size:11px;font-weight:500;padding:1px 7px;border-radius:999px;z-index:1}
+.pc-body{padding:9px 10px 10px;display:flex;flex-direction:column;gap:3px;flex:1}
+.pc-top{display:flex;justify-content:space-between;gap:6px;align-items:baseline}
+.pc-top b{font-size:13.5px;line-height:1.3}
+.rt{font-size:12px;white-space:nowrap;color:var(--a-ink)}
+.rt::first-letter{color:var(--a-star)}
+.meta{font-size:12px;color:var(--a-mute)}
+.open{font-size:12px;color:var(--a-good)}
+.open.bad{color:var(--a-bad)}
+.why{font-size:12px;background:var(--a-soft);color:var(--a-acc-d);border-radius:8px;padding:4px 8px;margin-top:3px}
+.ok{font-size:11.5px;color:var(--a-good)}
+.ctas{display:flex;flex-wrap:wrap;gap:6px;margin-top:auto;padding-top:6px}
+.btn{border:1px solid var(--a-acc);background:var(--a-card);color:var(--a-acc-d);border-radius:999px;padding:5px 11px;font-size:12.5px;font-weight:600;line-height:1.2}
+.btn.p{background:var(--a-acc);color:var(--a-ink-on)}
+.btn.ghost{border-color:var(--a-line);color:var(--a-ink);font-weight:500}
+.btn:hover{filter:brightness(.95)}
+.btn.block{width:100%;padding:9px 12px;font-size:13.5px;border-radius:12px}
+.btn[disabled]{opacity:.55;cursor:default}
+.dishes{display:flex;flex-direction:column;gap:6px}
+.dish{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:8px;align-items:center;font-size:12.5px}
+.dish .tile{width:44px;height:44px;border-radius:9px;font-size:12px}
+.dish .nm{line-height:1.3}
+.dish .nm small{display:block;color:var(--a-mute);font-size:11.5px}
+.price{font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap}
+.gal{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.gal .g{border:1px solid var(--a-line);border-radius:12px;overflow:hidden;background:var(--a-card)}
+.gal .tile{aspect-ratio:4/3;font-size:15px;max-width:100%}
+.gal .gi{padding:6px 8px;font-size:12px;display:flex;flex-direction:column;gap:3px}
+.gal .gi .row .btn{padding:2px 8px;font-size:11.5px}
+.list{display:flex;flex-direction:column}
+.li{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid var(--a-line);font-size:12.5px;align-items:center}
+.li:first-child{border-top:0;padding-top:0}
+.li .l{min-width:0}
+.li .l small{display:block;color:var(--a-mute);font-size:11.5px}
+.li.add{background:var(--a-good-soft);margin-inline:-12px;padding-inline:12px}
+.li.rem{text-decoration:line-through;color:var(--a-mute)}
+.li.rec{background:var(--a-soft);margin-inline:-12px;padding-inline:12px}
+.tag{display:inline-block;font-size:10.5px;font-weight:600;border-radius:4px;padding:0 5px;background:var(--a-soft);color:var(--a-acc-d);margin-left:4px;vertical-align:1px}
+.tag.w{background:var(--a-warn-soft);color:var(--a-warn)}
+.tag.bad{background:var(--a-bad-soft);color:var(--a-bad)}
+.tag.g{background:var(--a-good-soft);color:var(--a-good)}
+.tot{display:flex;justify-content:space-between;font-weight:700;font-size:13.5px;border-top:1px dashed var(--a-line);padding-top:7px}
+.saving{font-size:12px;color:var(--a-good);font-weight:600}
+.trip{display:grid;grid-template-columns:14px minmax(0,1fr);gap:2px 8px;font-size:12.5px}
+.trip .dot{width:10px;height:10px;border-radius:50%;border:2px solid var(--a-acc);margin-top:4px}
+.trip .dot.e{background:var(--a-bad);border-color:var(--a-bad);border-radius:2px}
+.trip .ln{width:2px;background:var(--a-line);margin-left:4px;height:12px}
+.trip small{color:var(--a-mute)}
+.kv{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 10px;font-size:12.5px}
+.kv dt{color:var(--a-mute)}
+.kv dd{margin:0;font-weight:500}
+.warn{background:var(--a-warn-soft);border:1px solid #f3d3a6;border-radius:12px;padding:9px 11px;font-size:12.5px;color:var(--a-ink)}
+.warn b{color:var(--a-warn)}
+.bad-box{background:var(--a-bad-soft);border:1px solid #f4c4be;border-radius:12px;padding:9px 11px;font-size:12.5px}
+.bad-box b{color:var(--a-bad)}
+.chipsin{display:flex;flex-wrap:wrap;gap:6px}
+.chipsin .btn{font-weight:500}
+.stars{display:flex;gap:4px}
+.stars button{border:0;background:transparent;font-size:26px;line-height:1;color:var(--a-line);padding:0}
+.stars button.on{color:var(--a-star)}
+.inp{width:100%;border:1px solid var(--a-line);border-radius:10px;padding:7px 10px;font:inherit;font-size:12.5px;background:var(--a-bg);color:var(--a-ink)}
+.tog{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12.5px;padding:6px 0;border-top:1px solid var(--a-line)}
+.tog:first-of-type{border-top:0}
+.tog small{display:block;color:var(--a-mute);font-size:11.5px}
+.sw{position:relative;width:38px;height:22px;flex:none;border-radius:999px;border:0;background:var(--a-line);padding:0}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .15s}
+.sw[aria-checked="true"]{background:var(--a-acc)}
+.sw[aria-checked="true"]::after{left:19px}
+.tbl{width:100%;border-collapse:collapse;font-size:11.5px}
+.tbl th,.tbl td{padding:5px 4px;border-top:1px solid var(--a-line);text-align:left;vertical-align:top}
+.tbl thead th{border-top:0;font-size:11px;color:var(--a-mute);font-weight:600}
+.tbl td.c{text-align:center}
+.tbl .hl{background:var(--a-soft)}
+.steps{display:flex;flex-direction:column;gap:6px;counter-reset:s}
+.st{display:grid;grid-template-columns:22px minmax(0,1fr);gap:8px;font-size:12.5px;align-items:start}
+.st::before{counter-increment:s;content:counter(s);width:20px;height:20px;border-radius:50%;background:var(--a-soft);color:var(--a-acc-d);display:grid;place-items:center;font-size:11px;font-weight:700}
+.st.done::before{content:"✓";background:var(--a-acc);color:#fff}
+.src{font-size:11.5px;color:var(--a-mute);border-top:1px solid var(--a-line);padding-top:6px}
+.reason summary{font-size:12px;color:var(--a-acc-d);cursor:pointer;list-style:none}
+.reason summary::-webkit-details-marker{display:none}
+.reason ol{margin:6px 0 0;padding-left:18px;font-size:12px;color:var(--a-mute)}
+.map{border-radius:10px;overflow:hidden;border:1px solid var(--a-line);background:#eef3f2}
+.map svg{display:block;width:100%;height:auto}
+.uimg{width:150px;height:120px;border-radius:14px 14px 4px 14px;align-self:flex-end;font-size:12px;text-align:center;padding:8px;line-height:1.3}
+.agent{display:flex;gap:8px;align-items:flex-start}
+.agent .av{width:28px;height:28px;font-size:11px;background:#5b6b8c}
+.proact{display:flex;flex-direction:column;gap:8px}
+.hello{font-size:17px;font-weight:700;padding:6px 2px 0}
+.hello small{display:block;font-size:12.5px;font-weight:400;color:var(--a-mute)}
+
+.sugg{display:flex;gap:6px;overflow-x:auto;padding:6px 12px 4px}
+.sugg::-webkit-scrollbar{height:0}
+.sugg button{flex:none;border:1px solid var(--a-acc);background:var(--a-soft);color:var(--a-acc-d);border-radius:999px;padding:5px 11px;font-size:12.5px;font-weight:500;max-width:300px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sugg button.rs{border-color:var(--a-line);background:var(--a-card);color:var(--a-mute)}
+.comp{display:flex;align-items:center;gap:8px;padding:6px 12px 16px;background:var(--a-bg)}
+.comp input{flex:1;min-width:0;border:1px solid var(--a-line);background:var(--a-card);color:var(--a-ink);border-radius:999px;padding:9px 14px;font:inherit;font-size:13.5px}
+.comp input.listen{border-color:var(--a-acc);background:var(--a-soft)}
+.ib{width:38px;height:38px;border-radius:50%;border:0;display:grid;place-items:center;flex:none;background:var(--a-card);color:var(--a-acc-d);border:1px solid var(--a-line)}
+.ib.send{background:var(--a-acc);color:#fff;border-color:var(--a-acc)}
+.ib svg{width:18px;height:18px}
+.ib.rec{background:var(--a-bad);color:#fff;border-color:var(--a-bad);animation:pulse 1s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 6px rgba(180,35,24,.18)}}
+.wave{display:flex;align-items:center;gap:3px;height:22px;padding:0 6px}
+.wave i{width:3px;border-radius:2px;background:var(--a-acc);animation:wv .9s ease-in-out infinite}
+@keyframes wv{0%,100%{height:5px}50%{height:20px}}
+.vhint{font-size:11.5px;color:var(--a-acc-d);padding:0 14px}
+
+/* NATIVE overlay */
+.native{position:absolute;inset:0;background:var(--a-bg);display:flex;flex-direction:column;transform:translateY(100%);transition:transform .28s ease;z-index:5}
+.native.show{transform:none}
+.nhead{display:flex;align-items:center;gap:8px;padding:44px 12px 10px;background:var(--a-card);border-bottom:1px solid var(--a-line)}
+.nhead button{border:0;background:transparent;color:var(--a-acc-d);font-size:13px;font-weight:600;padding:4px}
+.nhead b{flex:1;text-align:center;margin-right:52px;font-size:15px}
+.nbody{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
+.nbanner{font-size:12px;background:var(--a-soft);color:var(--a-acc-d);border-radius:10px;padding:7px 10px}
+.nf{background:var(--a-card);border:1px solid var(--a-line);border-radius:12px}
+.nfr{display:flex;justify-content:space-between;gap:12px;padding:10px 12px;border-top:1px solid var(--a-line);font-size:13px}
+.nfr:first-child{border-top:0}
+.nfr span{color:var(--a-mute);flex:none}
+.nfr b{font-weight:600;text-align:right}
+.ai{font-size:9.5px;font-weight:700;color:var(--a-acc-d);background:var(--a-soft);border-radius:3px;padding:0 4px;margin-left:5px;vertical-align:2px}
+.nfoot{padding:10px 12px 18px;background:var(--a-card);border-top:1px solid var(--a-line);display:flex;flex-direction:column;gap:6px}
+.nfoot small{text-align:center;color:var(--a-mute);font-size:11.5px}
+.nfoot .tot{border:0;padding:0}
+.toast{position:absolute;left:50%;bottom:86px;transform:translateX(-50%);background:#1d2b2a;color:#fff;font-size:12.5px;padding:7px 12px;border-radius:10px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9;white-space:nowrap}
+.toast.show{opacity:1}
+.disc{font-size:12px;color:var(--mute);text-align:center;max-width:360px}
+
+/* PANELS */
+.panels{display:grid;grid-template-columns:1fr;gap:14px;min-width:0}
+.pn{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 18px;min-width:0}
+.pn h2{margin:0 0 10px;font-size:11.5px;text-transform:uppercase;letter-spacing:.09em;color:var(--mute);font-weight:600}
+.uc-id{font-family:var(--f-mono);font-size:13px;color:var(--accent);font-weight:600}
+.uc-t{font-size:20px;font-weight:700;margin:2px 0 6px;line-height:1.3;text-wrap:balance}
+.uc-d{color:var(--ink);margin:0 0 10px;max-width:70ch}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:12px;border:1px solid var(--line);border-radius:999px;padding:2px 9px;color:var(--mute)}
+.chip.a{background:var(--accent-soft);border-color:transparent;color:var(--ink)}
+.prog{display:flex;gap:4px;margin-top:12px}
+.prog i{height:4px;flex:1;border-radius:2px;background:var(--line)}
+.prog i.on{background:var(--accent)}
+.intent{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:10px}
+.intent code{font-family:var(--f-mono);font-size:12.5px;background:var(--accent-soft);color:var(--ink);padding:2px 8px;border-radius:6px}
+.conf{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--mute);margin-left:auto}
+.conf .bar{width:70px;height:5px;border-radius:3px;background:var(--line);overflow:hidden}
+.conf .bar i{display:block;height:100%;background:var(--accent)}
+.slots{width:100%;border-collapse:collapse;font-size:13px}
+.slots td{padding:6px 0;border-top:1px solid var(--line);vertical-align:top}
+.slots td:first-child{color:var(--mute);width:34%;padding-right:10px}
+.slots td:last-child{text-align:right;width:1%;white-space:nowrap;padding-left:8px}
+.srcp{font-size:11px;border:1px solid var(--line);border-radius:4px;padding:0 5px;color:var(--mute)}
+.srcp.ctx{border-color:var(--accent);color:var(--accent)}
+.empty{color:var(--mute);margin:0}
+.nlog{display:flex;flex-direction:column;gap:6px}
+.nstate{display:flex;align-items:center;gap:8px;font-weight:600}
+.pill{font-size:11.5px;border-radius:999px;padding:1px 8px;font-weight:600}
+.pill.go{background:var(--accent);color:var(--accent-ink)}
+.pill.done{background:var(--accent-soft);color:var(--ink)}
+.lesson{margin:0 0 8px;font-size:14px}
+.principle{margin:0;font-size:13px;color:var(--mute);border-top:1px solid var(--line);padding-top:8px}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+
+@media (max-width:1180px){
+  .wrap{grid-template-columns:390px minmax(0,1fr)}
+  .nav{display:none}
+  .navsel{display:block;grid-column:1/-1}
+  .navsel select{width:100%;padding:9px 10px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit}
+}
+@media (max-width:820px){
+  .wrap{grid-template-columns:minmax(0,1fr)}
+  .phonecol{position:static}
+  .phone{height:700px;max-height:none;border-radius:36px;padding:8px}
+  .screen{border-radius:28px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+</style>
+
+<header class="top">
+  <div>
+    <h1>Trợ lý AI trên GSM</h1>
+    <p>Prototype đặt xe, đặt món, gửi hàng, hội viên và CSKH bằng trò chuyện, bám theo roadmap T10/2026 – Q1/2027. Quán, giá và địa chỉ là dữ liệu minh họa.</p>
+  </div>
+  <div class="keys">Phím <kbd>↑</kbd> <kbd>↓</kbd> để chuyển use case · <kbd>Enter</kbd> chạy lượt tiếp</div>
+</header>
+
+<main class="wrap">
+  <div class="navsel"><label class="disc" for="ucsel" style="display:block;text-align:left;margin-bottom:4px">Use case</label><select id="ucsel"></select></div>
+  <nav class="nav" aria-label="Use case theo roadmap">
+    <div class="filters" id="filters"></div>
+    <div class="navlist" id="navlist"></div>
+  </nav>
+
+  <div class="phonecol">
+    <div class="phone">
+      <div class="screen" id="screen">
+        <div class="sbar"><span>18:30</span><span>5G ▮▮▮</span></div>
+        <div class="ahead">
+          <div class="av">AI</div>
+          <div><b>Trợ lý GSM</b><small>Đặt xe, đặt món bằng lời nói</small></div>
+          <button class="newc" id="restart" type="button">Chạy lại</button>
+        </div>
+        <div class="chat" id="chat" aria-live="polite"></div>
+        <div class="vhint" id="vhint" hidden></div>
+        <div class="sugg" id="sugg"></div>
+        <form class="comp" id="comp">
+          <button class="ib" id="mic" type="button" aria-label="Nói thay vì gõ"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+          <input id="msg" autocomplete="off" placeholder="Nhắn cho trợ lý…">
+          <button class="ib send" type="submit" aria-label="Gửi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+        </form>
+        <div class="native" id="native" aria-hidden="true"></div>
+        <div class="toast" id="toast"></div>
+      </div>
+    </div>
+    <p class="disc">Bấm gợi ý phía trên ô nhập để chạy lượt tiếp theo, hoặc tự gõ yêu cầu.</p>
+  </div>
+
+  <section class="panels">
+    <div class="pn" id="p-uc"><h2>Use case đang demo</h2><div id="ucinfo">–</div></div>
+    <div class="two">
+      <div class="pn"><h2>Trợ lý hiểu được gì</h2><div id="intent"><p class="empty">Gửi một yêu cầu để xem trợ lý tách ý định và thông tin.</p></div></div>
+      <div class="pn"><h2>Chuyển sang luồng native</h2><div id="handoff"><p class="empty">Chưa chuyển. Bấm nút hành động trên thẻ để mở màn hình đã điền sẵn.</p></div></div>
+    </div>
+    <div class="pn"><h2>Học từ Ask DoorDash</h2><p class="lesson" id="lesson"></p><p class="principle"><b>Nguyên tắc:</b> trợ lý hiểu, chuẩn bị và điền sẵn; khách luôn là người xác nhận đơn trên luồng native.</p></div>
+  </section>
+</main>
+
+<script>
+/* ---------- Dữ liệu dùng chung (minh họa) ---------- */
+const HERE='72 Nguyễn Trãi, Thanh Xuân';
+const HOME='Nhà · 15 Trần Duy Hưng, Cầu Giấy';
+const ME='Văn';
+const vnd=n=>n.toLocaleString('vi-VN')+'đ';
+const RIDE=o=>({screen:o.screen||'Đặt xe',fields:[['Điểm đón',o.from||HERE],['Điểm đến',o.to],['Loại xe',o.v||'Car 4 chỗ'],['Thời gian đón',o.when||'Đi ngay'],...(o.extra||[])],total:o.price,btn:o.btn||'Đặt xe'});
+const FOOD=o=>({screen:o.screen||'Giỏ hàng',fields:[['Quán',o.shop],['Giao đến',o.to||HOME],['Thời gian giao',o.when||'Giao ngay · ~25 phút'],...(o.extra||[])],items:o.items,total:o.total,btn:o.btn||'Tiếp tục thanh toán'});
+const SHOP=(shop,extra)=>({screen:'Trang quán',fields:[['Quán',shop],['Giao đến',HOME],...(extra||[])],btn:'Xem menu & chọn món'});
+
+const GROUPS=[
+ ['5','Đặt xe','Khách nói nơi muốn đến, trợ lý chuẩn bị chuyến xe; khách xác nhận trên màn đặt xe đã điền sẵn.'],
+ ['6','Đặt món','Khách nói nhu cầu, trợ lý gợi ý món và lên giỏ hàng; khách xác nhận trên màn thanh toán đã điền sẵn.'],
+ ['7','Đặt nhanh & cá nhân hóa','Từ tìm quán đến đặt món hoặc gọi xe trong một cuộc trò chuyện; cá nhân hóa theo thói quen.'],
+ ['8','Thanh toán & mở rộng','Rút ngắn các bước từ lúc xác nhận trong chat đến lúc thanh toán xong.'],
+ ['9','Gói hội viên','Tìm hiểu, so sánh và mua gói Pass/Plus/VIP qua trò chuyện.'],
+ ['10','Gửi hàng','Mô tả món hàng, được tư vấn dịch vụ, báo phí và mở đơn gửi hàng đã điền sẵn.'],
+ ['11','Hỏi đáp CSKH','Hỏi đáp, báo sự cố và được chuyển sang nhân viên khi cần.'],
+ ['12','Trải nghiệm chat','Nâng cấp cách trợ lý hiển thị kết quả và nhận yêu cầu, áp dụng cho mọi tính năng.'],
+];
+
+/* ---------- Use case theo roadmap ---------- */
+const UC=[
+/* ===== 5 ĐẶT XE ===== */
+{id:'5.1',g:'5',m:'T11',p:'P1',t:'Nói điểm đến, trợ lý hiểu ngay',
+ d:'"Đặt xe về nhà", "đi Aeon Mall Long Biên": trợ lý xác định điểm đón và điểm đến từ câu nói, địa điểm đang xem hoặc địa chỉ đã lưu. Nếu chưa chắc, hiện 3–5 gợi ý kèm nút Đặt xe, rồi chuyển sang luồng đặt xe native đã điền sẵn.',
+ l:'Địa chỉ đã lưu ("nhà", "công ty") được hiểu ngay, không hỏi lại. Khi tên địa điểm có nhiều chi nhánh, đưa vài lựa chọn có địa chỉ và khoảng cách thay vì đoán một cái.',
+ turns:[
+  {u:'Đặt xe về nhà',s:'Đang lấy địa chỉ đã lưu…',
+   intent:{n:'book_ride',h:'Đặt xe',c:.97,slots:[['Điểm đến','Nhà · 15 Trần Duy Hưng','đã lưu'],['Điểm đón',HERE,'GPS'],['Loại xe','Car 4 chỗ (hay đi nhất)','thói quen'],['Thời gian','Đi ngay','mặc định']]},
+   b:[{t:'text',v:'Mình chuẩn bị chuyến về <b>Nhà</b> nhé. Đón bạn tại vị trí hiện tại.'},
+      {t:'trip',from:HERE,to:HOME,meta:'6,2 km · ~18 phút · Car 4 chỗ',price:98000,ctas:[{l:'Đặt xe',p:1,n:RIDE({to:HOME,price:'98.000đ'})},{l:'Đổi loại xe',g:1,toast:'Mở danh sách loại xe trên màn đặt xe'}]}]},
+  {u:'Thôi, đi Aeon Mall',s:'Đang tìm Aeon Mall gần bạn…',
+   intent:{n:'book_ride',h:'Đặt xe · điểm đến chưa rõ',c:.62,slots:[['Điểm đến','"Aeon Mall" · khớp 3 địa điểm','nói'],['Điểm đón',HERE,'ngữ cảnh'],['Xử lý','Hiện 3 gợi ý, không tự chọn','quy tắc']]},
+   b:[{t:'text',v:'Hà Nội có 2 Aeon Mall. Bạn muốn đến đâu?'},
+      {t:'dest',items:[
+        ['Aeon Mall Long Biên','27 Cổ Linh, Long Biên','9,8 km · ~28 phút',RIDE({to:'Aeon Mall Long Biên · sảnh chính',price:'142.000đ'})],
+        ['Aeon Mall Hà Đông','Dương Nội, Hà Đông','8,1 km · ~24 phút',RIDE({to:'Aeon Mall Hà Đông · sảnh chính',price:'126.000đ'})],
+        ['Aeon Mall Long Biên · cổng bãi xe B','Phía đường Cổ Linh','10,1 km · ~29 phút',RIDE({to:'Aeon Mall Long Biên · cổng B',price:'145.000đ'})]]}]}
+ ]},
+{id:'5.2',g:'5',m:'T11',p:'P2',t:'Hỏi giá trước khi đi',
+ d:'"Đi Aeon Mall khoảng bao nhiêu?" → giá dự kiến cho từng loại xe tới điểm đến, mỗi dòng có nút Đặt xe chuyển sang luồng native đã điền sẵn.',
+ l:'Trả lời câu hỏi giá bằng con số ngay đầu câu trả lời, rồi biến câu trả lời thành hành động: mỗi mức giá đi kèm nút đặt đúng loại xe đó.',
+ turns:[
+  {u:'Đi Aeon Mall Long Biên khoảng bao nhiêu?',s:'Đang tính giá dự kiến…',
+   intent:{n:'ask_fare',h:'Hỏi giá chuyến xe',c:.95,slots:[['Điểm đến','Aeon Mall Long Biên','nói'],['Điểm đón',HERE,'GPS'],['Quãng đường','9,8 km · ~28 phút','bản đồ']]},
+   b:[{t:'text',v:'Từ chỗ bạn tới Aeon Mall Long Biên khoảng <b>68.000đ – 215.000đ</b> tùy loại xe:'},
+      {t:'fares',items:[
+        ['Bike','1 người · đón ~3 phút',68000,RIDE({to:'Aeon Mall Long Biên',v:'Bike',price:'68.000đ'})],
+        ['Car 4 chỗ','đón ~5 phút',142000,RIDE({to:'Aeon Mall Long Biên',v:'Car 4 chỗ',price:'142.000đ'})],
+        ['Car 7 chỗ','đón ~8 phút',168000,RIDE({to:'Aeon Mall Long Biên',v:'Car 7 chỗ',price:'168.000đ'})],
+        ['Premium','xe sang · đón ~10 phút',215000,RIDE({to:'Aeon Mall Long Biên',v:'Premium',price:'215.000đ'})]],note:'Giá dự kiến lúc 18:30, có thể thay đổi giờ cao điểm.'}]}
+ ]},
+{id:'5.3',g:'5',m:'T11',p:'P2',t:'Được gợi ý loại xe phù hợp',
+ d:'Trợ lý so sánh Bike/Car/Premium theo giá, thời gian đón, số người, hành lý và gợi ý loại xe phù hợp nhất kèm nút Đặt xe.',
+ l:'Gợi ý một lựa chọn rõ ràng kèm lý do ngắn, vẫn cho thấy các lựa chọn còn lại để khách tự quyết.',
+ turns:[
+  {u:'3 người, có 2 vali lớn, ra sân bay Nội Bài',s:'Đang so sánh loại xe…',
+   intent:{n:'recommend_vehicle',h:'Chọn loại xe',c:.93,slots:[['Điểm đến','Sân bay Nội Bài','nói'],['Số người','3','nói'],['Hành lý','2 vali lớn','nói'],['Ràng buộc','≥ 4 ghế, cốp rộng','suy luận']]},
+   b:[{t:'text',v:'Với 3 người và 2 vali lớn, mình gợi ý <b>Car 7 chỗ</b>: đủ chỗ ngồi và cốp để vali thoải mái.'},
+      {t:'fares',items:[
+        ['Car 7 chỗ','Gợi ý · cốp rộng, đón ~8 phút',318000,RIDE({to:'Sân bay Nội Bài',v:'Car 7 chỗ',price:'318.000đ',extra:[['Ghi chú cho tài xế','3 khách, 2 vali lớn']]}),'rec'],
+        ['Car 4 chỗ','Chật nếu 2 vali lớn',265000,RIDE({to:'Sân bay Nội Bài',v:'Car 4 chỗ',price:'265.000đ'}),'w'],
+        ['Premium','Thoải mái, giá cao hơn',410000,RIDE({to:'Sân bay Nội Bài',v:'Premium',price:'410.000đ'})],
+        ['Bike','Không phù hợp (3 người)',0,null,'x']]}]}
+ ]},
+{id:'5.5',g:'5',m:'T12',p:'P2',t:'Đặt xe hẹn giờ',
+ d:'"Đi sân bay lúc 6h sáng mai" → mở màn đặt xe hẹn giờ, đã điền sẵn giờ đón và điểm đến.',
+ l:'Diễn giải thời gian tương đối ("sáng mai") thành ngày giờ cụ thể và hiển thị lại để khách thấy trợ lý hiểu đúng.',
+ turns:[
+  {u:'Đi sân bay lúc 6h sáng mai',s:'Đang chuẩn bị chuyến hẹn giờ…',
+   intent:{n:'schedule_ride',h:'Đặt xe hẹn giờ',c:.92,slots:[['Thời gian đón','06:00 · Thứ Năm 08/10','nói'],['Điểm đến','Sân bay Nội Bài · T1 (nội địa)','suy luận'],['Điểm đón',HOME,'đã lưu'],['Loại xe','Car 4 chỗ','thói quen']]},
+   b:[{t:'text',v:'Mình đặt hẹn giờ <b>06:00 sáng mai (Thứ Năm 08/10)</b>, đón tại Nhà, đi Nội Bài nhà ga T1.'},
+      {t:'trip',from:HOME,to:'Sân bay Nội Bài · Nhà ga T1',meta:'Hẹn 06:00 · 08/10 · ~32 phút · Car 4 chỗ',price:255000,
+       ctas:[{l:'Đặt xe hẹn giờ',p:1,n:RIDE({screen:'Đặt xe hẹn giờ',from:HOME,to:'Sân bay Nội Bài · T1',when:'06:00 · Thứ Năm 08/10',price:'255.000đ'})}]},
+      {t:'text',v:'Nếu bay quốc tế, bạn nói "T2" để mình đổi nhà ga.'}]},
+  {u:'Đổi sang T2, mình bay quốc tế',s:'Đang cập nhật…',
+   intent:{n:'schedule_ride',h:'Sửa chuyến hẹn giờ',c:.95,slots:[['Điểm đến','Nội Bài · T2 (quốc tế)','nói'],['Thời gian đón','05:45 (gợi ý sớm 15 phút)','suy luận'],['Giữ nguyên','Điểm đón, loại xe','ngữ cảnh']]},
+   b:[{t:'text',v:'Đã đổi sang <b>nhà ga T2</b>. Bay quốc tế nên ra sớm hơn, bạn có muốn đón lúc 05:45 không?'},
+      {t:'trip',from:HOME,to:'Sân bay Nội Bài · Nhà ga T2',meta:'Hẹn 05:45 · 08/10 · ~34 phút · Car 4 chỗ',price:262000,
+       ctas:[{l:'Đặt 05:45',p:1,n:RIDE({screen:'Đặt xe hẹn giờ',from:HOME,to:'Sân bay Nội Bài · T2',when:'05:45 · Thứ Năm 08/10',price:'262.000đ'})},{l:'Giữ 06:00',g:1,n:RIDE({screen:'Đặt xe hẹn giờ',from:HOME,to:'Sân bay Nội Bài · T2',when:'06:00 · Thứ Năm 08/10',price:'262.000đ'})}]}]}
+ ]},
+{id:'5.6',g:'5',m:'T12',p:'P2',t:'Chỉ đúng điểm đón ở sân bay, TTTM',
+ d:'Ở khu vực phức tạp như sân bay, trung tâm thương mại, trợ lý chỉ rõ cổng/điểm đón cụ thể để khách và tài xế dễ gặp nhau.',
+ l:'Ở nơi đông và nhiều lối ra, chỉ đường bằng mốc nhìn thấy được (cửa số mấy, cột nào) thay vì chỉ một chấm trên bản đồ.',
+ turns:[
+  {u:'Mình vừa xuống máy bay ở T2 Nội Bài, đặt xe về Times City',s:'Đang tìm điểm đón ở T2…',
+   intent:{n:'book_ride',h:'Đặt xe · điểm đón phức tạp',c:.94,slots:[['Điểm đón','Nội Bài T2 · Làn đón 3, cột C12','dữ liệu điểm đón'],['Điểm đến','Times City, Hai Bà Trưng','nói'],['Ngữ cảnh','Vừa hạ cánh, có thể có hành lý','suy luận']]},
+   b:[{t:'text',v:'Điểm đón xe công nghệ ở T2 là <b>Làn đón số 3, cột C12, tầng 1</b>.'},
+      {t:'map',kind:'air'},
+      {t:'steps',items:['Ra khỏi khu nhận hành lý, đi cửa số 4','Rẽ phải, đi thẳng khoảng 80 m','Đứng tại cột C12, làn đón số 3']},
+      {t:'actions',items:[{l:'Đặt xe từ C12',p:1,n:RIDE({from:'Nội Bài T2 · Làn 3, cột C12',to:'Times City, 458 Minh Khai',v:'Car 4 chỗ',price:'285.000đ',extra:[['Ghi chú cho tài xế','Đón tại cột C12, làn 3']]})}]}]},
+  {u:'Còn ở Vincom Royal City thì đón ở đâu?',s:'Đang tìm điểm đón…',
+   intent:{n:'pickup_point',h:'Hỏi điểm đón',c:.9,slots:[['Địa điểm','Vincom Mega Mall Royal City','nói'],['Điểm đón','Cổng R4 · phía Nguyễn Trãi','dữ liệu điểm đón']]},
+   b:[{t:'text',v:'Ở Royal City, xe đón tại <b>cổng R4, phía đường Nguyễn Trãi</b>. Từ tầng B1, đi thang cuốn lên sảnh R4 rồi ra cửa chính.'},
+      {t:'map',kind:'mall'},
+      {t:'actions',items:[{l:'Đặt xe từ cổng R4',p:1,n:RIDE({from:'Royal City · cổng R4',to:HOME,price:'72.000đ',extra:[['Ghi chú cho tài xế','Đón tại cổng R4 phía Nguyễn Trãi']]})}]}]}
+ ]},
+
+/* ===== 6 ĐẶT MÓN ===== */
+{id:'6.1',g:'6',m:'T11',p:'P1',t:'Nhận diện ý định đặt đồ ăn',
+ d:'Hiểu món, số người, ngân sách, khẩu vị, thời gian từ câu nói tự nhiên → gợi ý quán theo ý định kèm nút Đặt món, chuyển sang luồng đặt đồ ăn native.',
+ l:'Tách một câu nói thành nhiều điều kiện (món, số người, ngân sách, thời gian, nơi giao) và dùng tất cả để lọc, không chỉ tìm theo từ khóa món.',
+ turns:[
+  {u:'Tối nay 4 người ăn lẩu, tầm 500k, giao về nhà',s:'Đang tìm quán lẩu gần nhà…',
+   intent:{n:'order_food',h:'Đặt đồ ăn',c:.94,slots:[['Món','Lẩu','nói'],['Số người','4','nói'],['Ngân sách','~500.000đ (≈125k/người)','nói'],['Thời gian','Tối nay · giao ngay','nói'],['Giao đến',HOME,'đã lưu']]},
+   b:[{t:'text',v:'3 quán lẩu giao về Nhà, có set 4 người trong khoảng 500k:'},
+      {t:'places',items:[
+        {n:'Lẩu Nấm Rừng Xanh',c:'Lẩu nấm',r:4.7,d:'1,2 km',e:'~25 phút',pr:'Set 4 người 469k',o:'Mở đến 22:30',w:'Set 4 người vừa ngân sách',ct:[{l:'Đặt món',p:1,n:FOOD({shop:'Lẩu Nấm Rừng Xanh',items:[['Set lẩu nấm 4 người',1,469000]],total:'469.000đ'})},{l:'Gọi xe tới đây',n:RIDE({to:'Lẩu Nấm Rừng Xanh',price:'38.000đ',v:'Bike'})}]},
+        {n:'Lẩu Thái Tomyum 36',c:'Lẩu Thái',r:4.5,d:'2,0 km',e:'~30 phút',pr:'Set 4 người 489k',o:'Mở đến 23:00',w:'Bạn từng đặt và chấm 5★',ct:[{l:'Đặt món',p:1,n:FOOD({shop:'Lẩu Thái Tomyum 36',items:[['Set lẩu Thái 4 người',1,489000]],total:'489.000đ'})},{l:'Đặt nhóm',n:{screen:'Đặt nhóm',fields:[['Quán','Lẩu Thái Tomyum 36'],['Số người','4']],btn:'Tạo đơn nhóm'}}]},
+        {n:'Lẩu Bò Phố Cổ',c:'Lẩu bò',r:4.6,d:'2,8 km',e:'~35 phút',pr:'~120k/người',o:'Mở đến 22:00',w:'Quán mới hợp khẩu vị bạn',ct:[{l:'Đặt món',p:1,n:SHOP('Lẩu Bò Phố Cổ')}]}]}]}
+ ]},
+{id:'6.2',g:'6',m:'T11',p:'P1',t:'Gợi ý món cụ thể trong quán',
+ d:'"2 người ăn tối dưới 300k" → trợ lý gợi ý món cụ thể trong quán (tên món, giá), không chỉ tên quán, kèm nút Đặt món.',
+ l:'Đưa ra một bữa ăn hoàn chỉnh có tổng tiền khớp ngân sách. Khách duyệt một combo dễ hơn tự ghép món từ menu dài.',
+ turns:[
+  {u:'2 người ăn tối dưới 300k',s:'Đang ghép món theo ngân sách…',
+   intent:{n:'order_food',h:'Gợi ý món theo ngân sách',c:.93,slots:[['Số người','2','nói'],['Ngân sách','< 300.000đ','nói'],['Bữa','Tối','nói'],['Khẩu vị','Ưa món Việt, ít cay','ghi nhớ']]},
+   b:[{t:'text',v:'Mình ghép sẵn bữa tối 2 người, tổng <b>245.000đ</b>:'},
+      {t:'dishes',shop:'Cơm Niêu Hà Thành',sub:'★ 4,8 · 1,5 km · giao ~25 phút',items:[['Cá kho tộ','Món chính',95000],['Canh cua rau đay','Canh',55000],['Rau muống xào tỏi','Rau',45000],['Cơm niêu (2 phần)','Cơm',50000]],total:245000,
+       ctas:[{l:'Đặt combo này',p:1,n:FOOD({shop:'Cơm Niêu Hà Thành',items:[['Cá kho tộ',1,95000],['Canh cua rau đay',1,55000],['Rau muống xào tỏi',1,45000],['Cơm niêu',2,25000]],total:'245.000đ + phí giao'})},{l:'Xem quán khác',g:1,next:1}]}]},
+  {u:'Xem quán khác',s:'Đang tìm thêm…',
+   intent:{n:'order_food',h:'Gợi ý món · phương án 2',c:.9,slots:[['Giữ nguyên','2 người, < 300k, bữa tối','ngữ cảnh'],['Loại trừ','Cơm Niêu Hà Thành','ngữ cảnh']]},
+   b:[{t:'dishes',shop:'Bún Chả Ngõ Nhỏ',sub:'★ 4,6 · 0,9 km · giao ~20 phút',items:[['Bún chả (2 suất)','Món chính',130000],['Nem cua bể (4 chiếc)','Món thêm',80000],['Trà đá chanh (2)','Đồ uống',20000]],total:230000,
+       ctas:[{l:'Đặt combo này',p:1,n:FOOD({shop:'Bún Chả Ngõ Nhỏ',items:[['Bún chả',2,65000],['Nem cua bể',4,20000],['Trà đá chanh',2,10000]],total:'230.000đ + phí giao'})}]}]}
+ ]},
+{id:'6.3',g:'6',m:'T11',p:'P1',t:'Lên giỏ hàng, sửa ngay trong chat',
+ d:'Trợ lý tạo sẵn giỏ hàng; khách bảo thêm, bớt, đổi món ngay trong chat, rồi chuyển sang trang giỏ hàng native để thanh toán.',
+ l:'Hiện rõ phần thay đổi sau mỗi lần sửa (món thêm, món bỏ, tổng mới) để khách không phải đọc lại cả giỏ.',
+ turns:[
+  {u:'Lên giỏ ở Cơm Niêu Hà Thành: cá kho, canh cua, rau muống, 2 cơm niêu',s:'Đang tạo giỏ hàng…',
+   intent:{n:'build_cart',h:'Tạo giỏ hàng',c:.96,slots:[['Quán','Cơm Niêu Hà Thành','nói'],['Món','Cá kho tộ, Canh cua, Rau muống, Cơm niêu ×2','nói → khớp menu'],['Giao đến',HOME,'đã lưu']]},
+   b:[{t:'cart',shop:'Cơm Niêu Hà Thành',items:[['Cá kho tộ',1,95000],['Canh cua rau đay',1,55000],['Rau muống xào tỏi',1,45000],['Cơm niêu',2,25000]],fee:15000,
+       ctas:[{l:'Xem giỏ hàng',p:1,n:FOOD({shop:'Cơm Niêu Hà Thành',items:[['Cá kho tộ',1,95000],['Canh cua rau đay',1,55000],['Rau muống xào tỏi',1,45000],['Cơm niêu',2,25000]],total:'260.000đ'})}]}]},
+  {u:'Bỏ rau muống, thêm 2 trà chanh',s:'Đang sửa giỏ…',
+   intent:{n:'edit_cart',h:'Sửa giỏ hàng',c:.97,slots:[['Bỏ','Rau muống xào tỏi','nói'],['Thêm','Trà chanh ×2','nói → khớp menu'],['Giỏ','Giữ các món còn lại','ngữ cảnh']]},
+   b:[{t:'text',v:'Đã sửa giỏ. Tổng mới <b>255.000đ</b>.'},
+      {t:'cart',shop:'Cơm Niêu Hà Thành',items:[['Cá kho tộ',1,95000],['Canh cua rau đay',1,55000],['Rau muống xào tỏi',1,45000,'rem'],['Cơm niêu',2,25000],['Trà chanh',2,20000,'add']],fee:15000,
+       ctas:[{l:'Xem giỏ hàng',p:1,n:FOOD({shop:'Cơm Niêu Hà Thành',items:[['Cá kho tộ',1,95000],['Canh cua rau đay',1,55000],['Cơm niêu',2,25000],['Trà chanh',2,20000]],total:'255.000đ'})}]}]}
+ ]},
+{id:'6.4',g:'6',m:'T11',p:'P1',t:'Đặt món theo nhóm',
+ d:'Nhận ra khi khách đặt cho nhiều người ("trà sữa cho cả phòng", "team 8 người ăn trưa") → gợi ý nút "Đặt nhóm" hoặc "Sao chép link đặt nhóm".',
+ l:'Khi đơn là cho nhiều người, để mỗi người tự chọn qua một link chung thường nhanh hơn để một người hỏi từng người.',
+ turns:[
+  {u:'Trà sữa cho cả phòng 12 người',s:'Đang tìm quán hỗ trợ đơn nhóm…',
+   intent:{n:'group_order',h:'Đặt món theo nhóm',c:.95,slots:[['Món','Trà sữa','nói'],['Số người','12','nói'],['Hình thức','Đơn nhóm (mỗi người tự chọn)','suy luận'],['Giao đến','Công ty · Keangnam Landmark','đã lưu']]},
+   b:[{t:'text',v:'Đơn 12 người nên đặt nhóm: mỗi người tự chọn vị và topping, bạn chỉ cần chốt đơn.'},
+      {t:'places',items:[
+        {n:'Trà Sữa Mây',c:'Trà sữa',r:4.7,d:'0,6 km',e:'~20 phút',pr:'35–55k/ly',o:'Mở đến 22:00',w:'Freeship đơn nhóm từ 10 ly',ct:[{l:'Đặt nhóm',p:1,n:{screen:'Đặt nhóm',fields:[['Quán','Trà Sữa Mây'],['Số người dự kiến','12'],['Giao đến','Công ty · Keangnam Landmark'],['Hạn chọn món','18:50']],btn:'Tạo đơn nhóm'}},{l:'Sao chép link',copy:'https://gsm.vn/nhom/tsm-8K2Q'}]},
+        {n:'Tiệm Trà Gừng',c:'Trà sữa, trà trái cây',r:4.5,d:'1,1 km',e:'~25 phút',pr:'30–45k/ly',o:'Mở đến 21:30',w:'Giá tốt cho đơn lớn',ct:[{l:'Đặt nhóm',p:1,n:{screen:'Đặt nhóm',fields:[['Quán','Tiệm Trà Gừng'],['Số người dự kiến','12'],['Giao đến','Công ty · Keangnam Landmark']],btn:'Tạo đơn nhóm'}},{l:'Sao chép link',copy:'https://gsm.vn/nhom/ttg-3PZ1'}]}]}]}
+ ]},
+{id:'6.5',g:'6',m:'T11',p:'P1',t:'Tìm món theo tâm trạng, hoàn cảnh',
+ d:'"Món gì ấm bụng mà không ngấy", "ăn trưa tại bàn làm việc", "healthy nhưng không phải salad" → trợ lý hiểu tâm trạng, ngữ cảnh và gợi ý quán, món phù hợp.',
+ l:'Dịch mô tả cảm giác thành thuộc tính món cụ thể (nước dùng nóng, ít dầu, dễ ăn bằng thìa) rồi mới tìm.',
+ turns:[
+  {u:'Trời lạnh, muốn món gì ấm bụng mà không ngấy',s:'Đang tìm món nóng, thanh…',
+   intent:{n:'order_food',h:'Tìm món theo cảm giác',c:.86,slots:[['Cảm giác','Ấm bụng','nói'],['Diễn giải','Món nước nóng, ít dầu mỡ','suy luận'],['Loại trừ','Lẩu, đồ chiên','suy luận']]},
+   b:[{t:'places',items:[
+        {n:'Phở Gà Ta Hàng Hành',c:'Phở gà',r:4.8,d:'1,4 km',e:'~25 phút',pr:'55–75k',o:'Mở đến 22:00',w:'Nước dùng trong, ít béo',ct:[{l:'Đặt món',p:1,n:FOOD({shop:'Phở Gà Ta Hàng Hành',items:[['Phở gà ta',1,65000]],total:'65.000đ'})}]},
+        {n:'Cháo Sườn Sụn Bà Tư',c:'Cháo',r:4.6,d:'0,8 km',e:'~20 phút',pr:'35–50k',o:'Mở đến 23:00',w:'Nhẹ bụng, giao nhanh',ct:[{l:'Đặt món',p:1,n:FOOD({shop:'Cháo Sườn Sụn Bà Tư',items:[['Cháo sườn sụn',1,40000]],total:'40.000đ'})}]},
+        {n:'Bún Mọc Nấm Hương',c:'Bún nước',r:4.5,d:'1,9 km',e:'~30 phút',pr:'45–60k',o:'Mở đến 21:30',w:'Thanh, nhiều rau',ct:[{l:'Đặt món',p:1,n:SHOP('Bún Mọc Nấm Hương')}]}]}]},
+  {u:'Mai ăn trưa tại bàn làm việc, không bị rơi vãi',s:'Đang tìm món dễ ăn tại bàn…',
+   intent:{n:'order_food',h:'Tìm món theo hoàn cảnh',c:.84,slots:[['Hoàn cảnh','Ăn tại bàn làm việc','nói'],['Diễn giải','Cơm hộp, không nước, gọn','suy luận'],['Thời gian','Trưa mai · hẹn giao 11:45','nói'],['Giao đến','Công ty · Keangnam','đã lưu']]},
+   b:[{t:'text',v:'Món khô, đóng hộp gọn, ăn bằng thìa được. Mình hẹn giao <b>11:45 mai</b> tới công ty.'},
+      {t:'places',items:[
+        {n:'Bento Nhà Lúa',c:'Cơm hộp',r:4.7,d:'0,5 km',e:'Hẹn 11:45',pr:'55–79k',o:'Mở 10:00 mai',w:'Hộp chia ngăn, không đổ',ct:[{l:'Đặt hẹn giờ',p:1,n:FOOD({shop:'Bento Nhà Lúa',when:'Hẹn giao 11:45 · 08/10',to:'Công ty · Keangnam Landmark',items:[['Bento gà teriyaki',1,69000]],total:'69.000đ'})}]},
+        {n:'Xôi Gà Hội An',c:'Xôi',r:4.5,d:'1,0 km',e:'Hẹn 11:45',pr:'40–60k',o:'Mở 6:30 mai',w:'Ăn nhanh, no lâu',ct:[{l:'Đặt hẹn giờ',p:1,n:FOOD({shop:'Xôi Gà Hội An',when:'Hẹn giao 11:45 · 08/10',to:'Công ty · Keangnam Landmark',items:[['Xôi gà xé',1,50000]],total:'50.000đ'})}]}]}]}
+ ]},
+{id:'6.6',g:'6',m:'T11',p:'P1',t:'Lọc theo chế độ ăn, dị ứng',
+ d:'Chay, không cay, phù hợp trẻ em, không hành/ngò, kiêng hải sản… Trợ lý kiểm tra menu quán thực sự có món phù hợp trước khi gợi ý, không chỉ khớp tên hay danh mục.',
+ l:'Kiểm tra ở cấp món, nói rõ món nào đạt điều kiện, và nói luôn quán nào bị loại vì sao. Với dị ứng, sự minh bạch quan trọng hơn số lượng gợi ý.',
+ turns:[
+  {u:'Tìm món chay, không hành ngò, không cay cho bé 5 tuổi',s:'Đang kiểm tra menu từng quán…',
+   intent:{n:'order_food',h:'Lọc theo chế độ ăn',c:.95,slots:[['Chế độ','Chay','nói'],['Loại trừ','Hành, ngò · cay','nói'],['Đối tượng','Trẻ 5 tuổi · khẩu phần nhỏ','nói'],['Cách kiểm tra','Thành phần từng món trong menu','quy tắc']]},
+   b:[{t:'text',v:'Mình đã kiểm tra menu. 2 quán có món đạt cả 3 điều kiện:'},
+      {t:'places',items:[
+        {n:'Cơm Chay Sen Hồng',c:'Chay',r:4.8,d:'1,1 km',e:'~25 phút',pr:'Món gợi ý 45k',o:'Mở đến 21:00',w:'Đậu hũ sốt cà chua · không hành ngò, không cay',ok:'✓ Chay ✓ Không hành ngò ✓ Không cay',ct:[{l:'Đặt món',p:1,n:FOOD({shop:'Cơm Chay Sen Hồng',items:[['Cơm đậu hũ sốt cà (suất nhỏ)',1,45000]],extra:[['Ghi chú cho quán','Không hành, không ngò, không cay']],total:'45.000đ'})}]},
+        {n:'Mì Ý Bé Na',c:'Mì Ý, đồ trẻ em',r:4.6,d:'1,7 km',e:'~30 phút',pr:'Món gợi ý 59k',o:'Mở đến 21:30',w:'Mì sốt kem nấm · menu trẻ em',ok:'✓ Chay ✓ Không hành ngò ✓ Không cay',ct:[{l:'Đặt món',p:1,n:FOOD({shop:'Mì Ý Bé Na',items:[['Mì sốt kem nấm (kids)',1,59000]],total:'59.000đ'})}]}]},
+      {t:'note',v:'Đã loại <b>Quán Chay Lá Xanh</b>: các món đều nấu sẵn có ngò trong nước dùng.'}]}
+ ]},
+{id:'6.7',g:'6',m:'T11',p:'P1',t:'Tinh chỉnh qua nhiều lượt trò chuyện',
+ d:'Khách nói tiếp "rẻ hơn", "gần hơn", "thêm món chay cho bé" → danh sách cập nhật dựa trên ngữ cảnh trước, không phải nhập lại từ đầu.',
+ l:'Mỗi lượt sau chỉ thêm hoặc đổi một điều kiện; trợ lý giữ phần còn lại. Panel bên cạnh cho thấy điều kiện nào đến từ ngữ cảnh trước.',
+ turns:[
+  {u:'Bún chả gần đây',s:'Đang tìm bún chả…',
+   intent:{n:'order_food',h:'Tìm quán',c:.95,slots:[['Món','Bún chả','nói'],['Vị trí',HERE,'GPS']]},
+   b:[{t:'places',items:[
+        {n:'Bún Chả Hàng Mành',c:'Bún chả',r:4.7,d:'1,8 km',e:'~30 phút',pr:'85k/suất',o:'Mở đến 21:00',w:'Đánh giá cao nhất khu vực',ct:[{l:'Đặt món',p:1,n:SHOP('Bún Chả Hàng Mành')}]},
+        {n:'Bún Chả Ngõ Nhỏ',c:'Bún chả',r:4.6,d:'0,9 km',e:'~20 phút',pr:'65k/suất',o:'Mở đến 21:30',w:'Gần, giao ~20 phút',ct:[{l:'Đặt món',p:1,n:SHOP('Bún Chả Ngõ Nhỏ')}]},
+        {n:'Bún Chả Que Tre',c:'Bún chả',r:4.4,d:'2,3 km',e:'~35 phút',pr:'55k/suất',o:'Mở đến 22:00',w:'Giá tốt',ct:[{l:'Đặt món',p:1,n:SHOP('Bún Chả Que Tre')}]}]}]},
+  {u:'Rẻ hơn',s:'Đang lọc lại…',
+   intent:{n:'refine',h:'Tinh chỉnh: giá',c:.93,slots:[['Món','Bún chả','ngữ cảnh'],['Vị trí',HERE,'ngữ cảnh'],['Mới','Giá < 65k/suất','nói']]},
+   b:[{t:'text',v:'Sắp xếp theo giá, dưới 65k/suất:'},
+      {t:'places',items:[
+        {n:'Bún Chả Que Tre',c:'Bún chả',r:4.4,d:'2,3 km',e:'~35 phút',pr:'55k/suất',o:'Mở đến 22:00',w:'Rẻ nhất trong 3 km',ct:[{l:'Đặt món',p:1,n:SHOP('Bún Chả Que Tre')}]},
+        {n:'Bún Chả Cô Ba',c:'Bún chả',r:4.3,d:'1,2 km',e:'~25 phút',pr:'50k/suất',o:'Mở đến 20:30',w:'Giá tốt, gần',ct:[{l:'Đặt món',p:1,n:SHOP('Bún Chả Cô Ba')}]}]}]},
+  {u:'Gần hơn, và thêm món chay cho bé',s:'Đang lọc lại…',
+   intent:{n:'refine',h:'Tinh chỉnh: khoảng cách + món chay',c:.9,slots:[['Món','Bún chả','ngữ cảnh'],['Giá','< 65k/suất','ngữ cảnh'],['Mới','≤ 1,5 km','nói'],['Mới','Có món chay cho trẻ em','nói']]},
+   b:[{t:'text',v:'Còn 1 quán đạt hết: gần, rẻ và có món chay cho bé.'},
+      {t:'places',items:[
+        {n:'Bún Chả Cô Ba',c:'Bún chả · có món chay',r:4.3,d:'1,2 km',e:'~25 phút',pr:'50k/suất',o:'Mở đến 20:30',w:'Có "Bún đậu sốt cà" chay, suất nhỏ',ok:'✓ < 65k ✓ ≤ 1,5 km ✓ Món chay',ct:[{l:'Đặt món',p:1,n:FOOD({shop:'Bún Chả Cô Ba',items:[['Bún chả',1,50000],['Bún đậu sốt cà (suất nhỏ, chay)',1,35000]],total:'85.000đ'})}]}]}]}
+ ]},
+{id:'6.8',g:'6',m:'T11',p:'P1',t:'Giải thích vì sao gợi ý quán/món',
+ d:'Mỗi quán gợi ý kèm 1 dòng lý do cá nhân hóa: "Bạn từng đặt và chấm 5★", "Healthy, giá tốt", "Gần, giao ~20 phút", "Quán mới hợp khẩu vị bạn".',
+ l:'Một dòng lý do ngắn, cụ thể cho từng gợi ý giúp khách tin và dám thử quán mới. Lý do phải đúng với dữ liệu thật của khách.',
+ turns:[
+  {u:'Tối nay ăn gì?',s:'Đang chọn theo thói quen của bạn…',
+   intent:{n:'discover_food',h:'Gợi ý mở',c:.8,slots:[['Bữa','Tối','giờ hiện tại'],['Lịch sử','12 đơn tối gần đây','ghi nhớ'],['Khẩu vị','Món Việt, ít cay','ghi nhớ']]},
+   b:[{t:'places',items:[
+        {n:'Cơm Tấm Sà Bì Chưởng',c:'Cơm tấm',r:4.7,d:'1,0 km',e:'~20 phút',pr:'55–80k',o:'Mở đến 22:00',w:'Bạn từng đặt 4 lần và chấm 5★',ct:[{l:'Đặt lại món cũ',p:1,n:FOOD({shop:'Cơm Tấm Sà Bì Chưởng',items:[['Cơm tấm sườn bì chả',1,65000]],total:'65.000đ'})}]},
+        {n:'Healthy Bowl Garden',c:'Poke, cơm gạo lứt',r:4.6,d:'1,6 km',e:'~25 phút',pr:'69–95k',o:'Mở đến 21:30',w:'Healthy, giá tốt trong khu vực',ct:[{l:'Đặt món',p:1,n:SHOP('Healthy Bowl Garden')}]},
+        {n:'Bún Riêu Cua Đồng Bà Lan',c:'Bún riêu',r:4.5,d:'0,7 km',e:'~18 phút',pr:'45–60k',o:'Mở đến 21:00',w:'Gần nhất, giao ~18 phút',ct:[{l:'Đặt món',p:1,n:SHOP('Bún Riêu Cua Đồng Bà Lan')}]},
+        {n:'Mì Quảng Ếch Đà Thành',c:'Mì Quảng',r:4.6,d:'2,1 km',e:'~30 phút',pr:'60–85k',o:'Mở đến 22:00',w:'Quán mới, hợp khẩu vị bạn (hay đặt món miền Trung)',ct:[{l:'Thử quán mới',p:1,n:SHOP('Mì Quảng Ếch Đà Thành')}]}]}]}
+ ]},
+{id:'6.9',g:'6',m:'T11',p:'P2',t:'Xem ảnh món ngay trong chat',
+ d:'Hiển thị ảnh món (lấy từ trang quán trên app) cùng tên món, giá ngay trong cuộc trò chuyện để khách chọn mà không rời chat.',
+ l:'Ảnh món đặt cạnh tên và giá giúp chọn nhanh hơn đọc mô tả. Nút thêm vào giỏ nằm ngay trên ảnh.',
+ turns:[
+  {u:'Cho mình xem các món bán chạy ở Bếp Mộc',s:'Đang lấy ảnh món…',
+   intent:{n:'browse_menu',h:'Xem menu có ảnh',c:.95,slots:[['Quán','Bếp Mộc','nói'],['Lọc','Món bán chạy','nói'],['Nguồn ảnh','Trang quán trên app','hệ thống']]},
+   b:[{t:'text',v:'4 món bán chạy ở <b>Bếp Mộc</b> (ảnh minh họa):'},
+      {t:'gallery',items:[['Gà nướng mắc khén',129000],['Cá lăng nướng',159000],['Canh chua cá',69000],['Rau rừng xào tỏi',59000]],shop:'Bếp Mộc'}]}
+ ]},
+{id:'6.10',g:'6',m:'T12',p:'P1',t:'Ghi nhớ khẩu vị & tùy chọn món',
+ d:'Trợ lý nhớ topping/ghi chú quen ("không hành", "50% đường, ít đá", luôn kèm tráng miệng) và tự áp khi lên giỏ; khách xem, sửa, xóa được.',
+ l:'Ghi nhớ phải nhìn thấy được và sửa được. Mỗi lần trợ lý tự áp một ghi nhớ, giỏ hàng ghi rõ "theo ghi nhớ".',
+ turns:[
+  {u:'Đặt 1 trà sữa ô long như mọi khi',s:'Đang áp tùy chọn quen…',
+   intent:{n:'build_cart',h:'Tạo giỏ với ghi nhớ',c:.94,slots:[['Món','Trà sữa ô long','nói'],['Quán','Trà Sữa Mây','ghi nhớ'],['Tùy chọn','50% đường · ít đá · trân châu trắng','ghi nhớ']]},
+   b:[{t:'text',v:'Mình đã áp tùy chọn quen của bạn:'},
+      {t:'cart',shop:'Trà Sữa Mây',items:[['Trà sữa ô long (L)',1,45000,'mem','50% đường · ít đá · trân châu trắng']],fee:12000,
+       ctas:[{l:'Xem giỏ hàng',p:1,n:FOOD({shop:'Trà Sữa Mây',items:[['Trà sữa ô long (L) · 50% đường, ít đá, TC trắng',1,45000]],total:'57.000đ'})}]}]},
+  {u:'Trợ lý đang nhớ gì về mình?',s:'Đang mở ghi nhớ…',
+   intent:{n:'manage_memory',h:'Xem ghi nhớ',c:.97,slots:[['Hành động','Xem danh sách ghi nhớ','nói']]},
+   b:[{t:'text',v:'Đây là những gì mình đang nhớ. Bạn sửa hoặc xóa được từng dòng:'},
+      {t:'memory',items:['Trà sữa: 50% đường, ít đá, trân châu trắng','Phở, bún: không hành','Cơm tấm: thêm sốt mỡ hành','Đơn tối: luôn kèm tráng miệng','Không ăn cay']}]}
+ ]},
+{id:'6.11',g:'6',m:'T12',p:'P2',t:'Lên giỏ nhóm nhiều khẩu vị',
+ d:'"Team 6 người, 2 người ăn chay, 1 người không ăn cay" → trợ lý lên một giỏ đủ số lượng và đúng từng yêu cầu, khách chỉ cần duyệt.',
+ l:'Nhóm món theo từng yêu cầu ăn uống để người đặt kiểm tra nhanh "đủ phần chưa, đúng người chưa".',
+ turns:[
+  {u:'Team 6 người ăn trưa, 2 người ăn chay, 1 người không ăn cay, tầm 70k/người',s:'Đang lên giỏ cho 6 người…',
+   intent:{n:'group_cart',h:'Giỏ nhóm nhiều khẩu vị',c:.92,slots:[['Số người','6','nói'],['Chay','2','nói'],['Không cay','1','nói'],['Ngân sách','~70k/người (≤ 420k)','nói'],['Quán','Cơm Văn Phòng 79 (có cả món chay)','suy luận']]},
+   b:[{t:'text',v:'Giỏ 6 phần ở <b>Cơm Văn Phòng 79</b>, tổng <b>402.000đ</b> (67k/người):'},
+      {t:'cart',shop:'Cơm Văn Phòng 79',items:[['Cơm gà xối mỡ',3,69000,'','3 người thường'],['Cơm gà xối mỡ · không ớt',1,69000,'','1 người không cay'],['Cơm chay thập cẩm',2,63000,'','2 người ăn chay']],fee:0,feeNote:'Freeship đơn ≥ 300k',
+       ctas:[{l:'Duyệt & xem giỏ',p:1,n:FOOD({shop:'Cơm Văn Phòng 79',to:'Công ty · Keangnam Landmark',items:[['Cơm gà xối mỡ',3,69000],['Cơm gà xối mỡ (không ớt)',1,69000],['Cơm chay thập cẩm',2,63000]],total:'402.000đ'})},{l:'Gửi link cho team tự chọn',copy:'https://gsm.vn/nhom/cvp79-6T'}]}]}
+ ]},
+{id:'6.12',g:'6',m:'T12',p:'P2',t:'Gửi ảnh để được gợi ý món',
+ d:'Khách gửi ảnh (món muốn ăn, menu, tủ lạnh…) → trợ lý nhận diện và gợi ý món/quán tương tự kèm nút Đặt món.',
+ l:'Nói lại trợ lý nhận ra gì trong ảnh trước khi gợi ý, để khách sửa nếu nhận diện sai.',
+ turns:[
+  {img:'Ảnh chụp: bát bún bò Huế',u:'Muốn ăn món này',s:'Đang nhận diện ảnh…',
+   intent:{n:'image_to_food',h:'Gợi ý từ ảnh',c:.88,slots:[['Nhận diện','Bún bò Huế (88%)','ảnh'],['Chi tiết','Có chả cua, giò heo','ảnh'],['Vị trí',HERE,'GPS']]},
+   b:[{t:'text',v:'Mình nhận ra đây là <b>bún bò Huế</b> có chả cua và giò heo. Các quán gần bạn:'},
+      {t:'places',items:[
+        {n:'Bún Bò Huế O Xuân',c:'Bún bò Huế',r:4.7,d:'1,3 km',e:'~25 phút',pr:'55–75k',o:'Mở đến 21:30',w:'Có đúng suất chả cua + giò',ct:[{l:'Đặt món',p:1,n:FOOD({shop:'Bún Bò Huế O Xuân',items:[['Bún bò giò chả cua',1,70000]],total:'70.000đ'})}]},
+        {n:'Huế Quán',c:'Món Huế',r:4.5,d:'2,0 km',e:'~30 phút',pr:'50–70k',o:'Mở đến 22:00',w:'Vị cay vừa, nhiều sả',ct:[{l:'Đặt món',p:1,n:SHOP('Huế Quán')}]}]}]},
+  {img:'Ảnh chụp: tủ lạnh có trứng, cà chua, hành lá',u:'Nhà còn mấy thứ này, nên đặt thêm gì?',s:'Đang nhận diện ảnh…',
+   intent:{n:'image_to_food',h:'Gợi ý từ ảnh tủ lạnh',c:.8,slots:[['Nhận diện','Trứng, cà chua, hành lá','ảnh'],['Gợi ý','Món ăn kèm cơm nhà','suy luận']]},
+   b:[{t:'text',v:'Có trứng và cà chua thì bạn nấu được trứng sốt cà. Đặt thêm một món mặn và rau là đủ bữa:'},
+      {t:'dishes',shop:'Cơm Niêu Hà Thành',sub:'Gọi món lẻ · giao ~25 phút',items:[['Thịt kho tàu','Món mặn',85000],['Rau muống xào tỏi','Rau',45000]],total:130000,
+       ctas:[{l:'Đặt 2 món này',p:1,n:FOOD({shop:'Cơm Niêu Hà Thành',items:[['Thịt kho tàu',1,85000],['Rau muống xào tỏi',1,45000]],total:'130.000đ'})}]}]}
+ ]},
+
+/* ===== 7 ĐẶT NHANH & CÁ NHÂN HÓA ===== */
+{id:'7.1',g:'7',m:'T12',p:'P1',t:'Tìm quán rồi đặt món hoặc gọi xe tới quán',
+ d:'Chọn quán trong trò chuyện rồi đặt món về hoặc gọi xe tới quán; không phải nhập lại thông tin.',
+ l:'Một quán, hai cách dùng: đặt về hoặc đi tới. Thông tin quán được mang sang cả hai luồng mà khách không phải gõ lại.',
+ turns:[
+  {u:'Quán cà phê yên tĩnh để làm việc ở Tây Hồ',s:'Đang tìm quán…',
+   intent:{n:'discover_place',h:'Tìm địa điểm',c:.9,slots:[['Loại','Cà phê','nói'],['Đặc điểm','Yên tĩnh, ngồi làm việc','nói'],['Khu vực','Tây Hồ','nói'],['Khoảng cách','~7 km → ưu tiên Gọi xe','suy luận']]},
+   b:[{t:'places',items:[
+        {n:'Tiệm Sách & Cà Phê Gió',c:'Cà phê sách',r:4.8,d:'7,2 km',e:'Xe ~22 phút',pr:'45–70k',o:'Mở đến 22:00',w:'Yên tĩnh, có ổ cắm mọi bàn',ct:[{l:'Gọi xe tới đây',p:1,next:1},{l:'Đặt đồ uống về',n:SHOP('Tiệm Sách & Cà Phê Gió')}]},
+        {n:'Hồ Tây Garden Coffee',c:'Cà phê sân vườn',r:4.6,d:'7,8 km',e:'Xe ~25 phút',pr:'40–60k',o:'Mở đến 23:00',w:'Không gian rộng, view hồ',ct:[{l:'Gọi xe tới đây',p:1,n:RIDE({to:'Hồ Tây Garden Coffee, Quảng An',price:'112.000đ'})}]}]}]},
+  {u:'Gọi xe tới Tiệm Sách & Cà Phê Gió',s:'Đang chuẩn bị chuyến xe…',
+   intent:{n:'book_ride',h:'Đặt xe tới quán đã chọn',c:.97,slots:[['Điểm đến','Tiệm Sách & Cà Phê Gió, 12 Quảng An','ngữ cảnh'],['Điểm đón',HERE,'GPS'],['Loại xe','Bike (đi 1 mình)','thói quen']]},
+   b:[{t:'trip',from:HERE,to:'Tiệm Sách & Cà Phê Gió · 12 Quảng An',meta:'7,2 km · ~22 phút · Bike',price:54000,
+       ctas:[{l:'Đặt xe',p:1,n:RIDE({to:'Tiệm Sách & Cà Phê Gió · 12 Quảng An',v:'Bike',price:'54.000đ'})},{l:'Đổi sang Car',g:1,n:RIDE({to:'Tiệm Sách & Cà Phê Gió · 12 Quảng An',v:'Car 4 chỗ',price:'118.000đ'})}]}]}
+ ]},
+{id:'7.2',g:'7',m:'T12',p:'P1',t:'Đặt món quen',
+ d:'Trợ lý nhớ món khách hay đặt (theo số lần và khung giờ). "Đặt món quen" → giỏ hàng tạo sẵn. Hỗ trợ "đặt lại món hôm qua" và "tìm quán tương tự nhưng rẻ hơn".',
+ l:'Đơn lặp lại nên chỉ cần một câu và một lần xác nhận. Ghi rõ vì sao trợ lý chọn món đó (số lần đặt, khung giờ).',
+ turns:[
+  {u:'Đặt món quen',s:'Đang lấy món quen buổi tối…',
+   intent:{n:'reorder',h:'Đặt món quen',c:.96,slots:[['Món quen','Cơm tấm sườn bì chả + trà đá','lịch sử'],['Căn cứ','Đặt 9 lần, thường 18:00–19:30','lịch sử'],['Tùy chọn','Thêm sốt mỡ hành','ghi nhớ']]},
+   b:[{t:'text',v:'Món quen buổi tối của bạn (đặt 9 lần trong tháng):'},
+      {t:'cart',shop:'Cơm Tấm Sà Bì Chưởng',items:[['Cơm tấm sườn bì chả',1,65000,'mem','Thêm sốt mỡ hành'],['Trà đá',1,5000]],fee:15000,
+       ctas:[{l:'Đặt ngay',p:1,n:FOOD({shop:'Cơm Tấm Sà Bì Chưởng',items:[['Cơm tấm sườn bì chả (thêm mỡ hành)',1,65000],['Trà đá',1,5000]],total:'85.000đ'})}]}]},
+  {u:'Tìm quán tương tự nhưng rẻ hơn',s:'Đang tìm quán tương tự…',
+   intent:{n:'find_similar',h:'Quán tương tự, rẻ hơn',c:.9,slots:[['Tham chiếu','Cơm Tấm Sà Bì Chưởng · 65k','ngữ cảnh'],['Điều kiện','Cơm tấm, < 65k, ★ ≥ 4,3','nói']]},
+   b:[{t:'places',items:[
+        {n:'Cơm Tấm Cô Út',c:'Cơm tấm',r:4.5,d:'1,1 km',e:'~22 phút',pr:'Sườn bì chả 52k',o:'Mở đến 21:30',w:'Rẻ hơn 13k, cùng món',ct:[{l:'Đặt món',p:1,n:FOOD({shop:'Cơm Tấm Cô Út',items:[['Cơm tấm sườn bì chả (thêm mỡ hành)',1,52000]],total:'52.000đ'})}]},
+        {n:'Cơm Tấm 3 Miền',c:'Cơm tấm',r:4.4,d:'1,6 km',e:'~25 phút',pr:'Sườn bì chả 49k',o:'Mở đến 22:00',w:'Rẻ nhất, đánh giá ổn',ct:[{l:'Đặt món',p:1,n:FOOD({shop:'Cơm Tấm 3 Miền',items:[['Cơm tấm sườn bì chả',1,49000]],total:'49.000đ'})}]}]}]}
+ ]},
+{id:'7.4',g:'7',m:'T12',p:'P1',t:'Gợi ý chủ động kèm nút đặt ngay',
+ d:'Khi khách mở cuộc trò chuyện mới, trợ lý chủ động gợi ý theo thời điểm và thói quen ("Trưa rồi, đặt món quen?", "Đặt xe về nhà?") kèm nút đặt ngay.',
+ l:'Gợi ý chủ động chỉ đáng hiện khi đúng thời điểm và có thể làm ngay bằng một chạm. Giới hạn 2–3 gợi ý.',
+ turns:[
+  {u:null,s:'',
+   intent:{n:'proactive',h:'Gợi ý chủ động',c:.85,slots:[['Thời điểm','18:30 · thứ Tư','giờ hiện tại'],['Vị trí','Gần công ty','GPS'],['Thói quen','Thường đặt xe về nhà 18:00–19:00','lịch sử'],['Thói quen','Món quen tối: cơm tấm','lịch sử']]},
+   b:[{t:'hello',v:'Chào '+ME+', 18:30 rồi',s:'Mấy việc bạn hay làm giờ này:'},
+      {t:'pro',items:[
+        ['Đặt xe về nhà?','Car 4 chỗ · ~25 phút · 112.000đ','Đặt xe',RIDE({from:'Công ty · Keangnam Landmark',to:HOME,price:'112.000đ'})],
+        ['Tối nay ăn món quen?','Cơm tấm sườn bì chả · 85.000đ','Đặt ngay',FOOD({shop:'Cơm Tấm Sà Bì Chưởng',items:[['Cơm tấm sườn bì chả (thêm mỡ hành)',1,65000],['Trà đá',1,5000]],total:'85.000đ'})]]}]},
+  {u:'Đặt xe về nhà nhưng ghé siêu thị trước',s:'Đang thêm điểm dừng…',
+   intent:{n:'book_ride',h:'Đặt xe có điểm dừng',c:.9,slots:[['Điểm đến','Nhà','đã lưu'],['Điểm dừng','Siêu thị gần tuyến: WinMart Trần Duy Hưng','suy luận'],['Điểm đón','Công ty · Keangnam','GPS']]},
+   b:[{t:'text',v:'Mình thêm điểm dừng ở <b>WinMart Trần Duy Hưng</b>, nằm trên đường về nhà.'},
+      {t:'trip',from:'Công ty · Keangnam Landmark',stop:'WinMart Trần Duy Hưng',to:HOME,meta:'Có 1 điểm dừng · ~30 phút · Car 4 chỗ',price:128000,
+       ctas:[{l:'Đặt xe',p:1,n:RIDE({from:'Công ty · Keangnam Landmark',to:HOME,price:'128.000đ',extra:[['Điểm dừng','WinMart Trần Duy Hưng']]})}]}]}
+ ]},
+{id:'7.5',g:'7',m:'T12',p:'P1',t:'Hỏi lại khi chưa rõ, gợi ý thay thế',
+ d:'Khi yêu cầu chưa rõ, trợ lý chỉ hỏi lại một câu ngắn. Khi món hết hoặc quán đóng cửa, trợ lý gợi ý món hoặc quán khác thay thế.',
+ l:'Hỏi đúng một câu, kèm lựa chọn bấm được. Khi không đáp ứng được, đưa phương án gần nhất thay vì chỉ báo lỗi.',
+ turns:[
+  {u:'Đặt cho mình 1 phần phở',s:'',
+   intent:{n:'order_food',h:'Đặt món · thiếu thông tin',c:.6,slots:[['Món','Phở','nói'],['Thiếu','Loại phở','—'],['Xử lý','Hỏi 1 câu, có lựa chọn bấm nhanh','quy tắc']]},
+   b:[{t:'text',v:'Phở bò hay phở gà ạ?'},{t:'quick',items:['Phở bò','Phở gà']}]},
+  {u:'Phở bò',s:'Đang kiểm tra quán quen…',
+   intent:{n:'order_food',h:'Đặt món · có thay thế',c:.9,slots:[['Món','Phở bò','nói'],['Quán quen','Phở Gánh Lò Đúc','lịch sử'],['Tình trạng','Hết phở tái lăn hôm nay','menu'],['Thay thế','Món khác cùng quán / quán khác','quy tắc']]},
+   b:[{t:'warnbox',v:'<b>Phở Gánh Lò Đúc</b> đã hết món quen của bạn (phở tái lăn) hôm nay.'},
+      {t:'text',v:'Bạn chọn một trong hai nhé:'},
+      {t:'alts',items:[
+        ['Phở tái chín · cùng quán','65.000đ · giao ~25 phút','Đặt món này',FOOD({shop:'Phở Gánh Lò Đúc',items:[['Phở tái chín',1,65000]],extra:[['Ghi chú','Không hành']],total:'65.000đ'})],
+        ['Phở tái lăn · Phở Bát Đàn Xưa','70.000đ · ★ 4,6 · giao ~30 phút','Đặt món này',FOOD({shop:'Phở Bát Đàn Xưa',items:[['Phở tái lăn',1,70000]],extra:[['Ghi chú','Không hành']],total:'70.000đ'})]]}]}
+ ]},
+{id:'7.6',g:'7',m:'T12',p:'P1',t:'Đánh giá nhanh sau chuyến đi và bữa ăn',
+ d:'Sau khi nhận đồ ăn hoặc kết thúc chuyến xe tới quán, trợ lý mời đánh giá nhanh: chấm sao một chạm, có thể viết thêm một câu.',
+ l:'Đánh giá nằm ngay trong cuộc trò chuyện, một chạm là xong. Câu nhận xét là tùy chọn.',
+ turns:[
+  {u:null,s:'',
+   intent:{n:'feedback',h:'Mời đánh giá',c:1,slots:[['Sự kiện','Đơn #F-58213 đã giao 18:12','hệ thống'],['Quán','Cơm Niêu Hà Thành','đơn hàng']]},
+   b:[{t:'sys',v:'Đơn từ Cơm Niêu Hà Thành đã giao lúc 18:12'},{t:'rating',target:'Bữa ăn từ Cơm Niêu Hà Thành thế nào?',ph:'Thêm một câu nhận xét (không bắt buộc)'}]},
+  {u:null,s:'',
+   intent:{n:'feedback',h:'Mời đánh giá chuyến xe',c:1,slots:[['Sự kiện','Chuyến #XSM-90412 kết thúc','hệ thống'],['Tài xế','Nguyễn Văn Hùng · 30A-512.47','chuyến xe']]},
+   b:[{t:'sys',v:'Bạn đã tới Tiệm Sách & Cà Phê Gió'},{t:'rating',target:'Chuyến xe với tài xế Hùng thế nào?',ph:'Khen hoặc góp ý cho tài xế',tags:['Lái xe êm','Đúng giờ','Xe sạch','Thân thiện']}]}
+ ]},
+
+/* ===== 8 THANH TOÁN ===== */
+{id:'8.1',g:'8',m:'T12',p:'P2',t:'Mã giảm giá tốt nhất được áp sẵn',
+ d:'Màn thanh toán áp sẵn voucher tốt nhất và hiển thị số tiền tiết kiệm.',
+ l:'Khách không phải tự so sánh mã. Hiện mã đã chọn, số tiền tiết kiệm và vẫn cho đổi mã khác.',
+ turns:[
+  {u:'Thanh toán giỏ hàng',s:'Đang tìm mã giảm giá tốt nhất…',
+   intent:{n:'checkout',h:'Thanh toán',c:.96,slots:[['Giỏ','Cơm Niêu Hà Thành · 255.000đ','ngữ cảnh'],['Mã khả dụng','3 mã','ví voucher'],['Chọn','GIAMTOI40 (giảm nhiều nhất)','quy tắc']]},
+   b:[{t:'text',v:'Mình đã so 3 mã bạn có và áp mã giảm nhiều nhất:'},
+      {t:'vouchers',items:[['GIAMTOI40','Giảm 15%, tối đa 40k',38000,1],['FREESHIP15','Miễn phí giao tối đa 15k',15000],['HOIVIEN20','Giảm 20k cho hội viên Plus',20000]]},
+      {t:'paysum',rows:[['Tạm tính',255000],['Phí giao',15000],['Mã GIAMTOI40',-38000]],total:232000,save:38000,
+       ctas:[{l:'Thanh toán 232.000đ',p:1,n:{screen:'Thanh toán',fields:[['Quán','Cơm Niêu Hà Thành'],['Giao đến',HOME],['Mã giảm giá','GIAMTOI40 · −38.000đ'],['Phương thức','Thẻ ATM •••• 4821']],total:'232.000đ',btn:'Đặt đơn & thanh toán'}}]}]}
+ ]},
+{id:'8.2',g:'8',m:'T12',p:'P2',t:'Thanh toán ngay trong trò chuyện',
+ d:'Xác nhận và thanh toán một chạm trong chat, không chuyển màn hình.',
+ l:'Gói đủ thông tin cần kiểm tra (món, địa chỉ, phương thức, tổng tiền) vào một thẻ, và chỉ trừ tiền khi khách bấm xác nhận.',
+ turns:[
+  {u:'Đặt món quen, trả bằng thẻ như mọi khi',s:'Đang chuẩn bị đơn…',
+   intent:{n:'pay_in_chat',h:'Thanh toán trong chat',c:.95,slots:[['Đơn','Cơm tấm sườn bì chả + trà đá','lịch sử'],['Phương thức','Thẻ ATM •••• 4821','đã lưu'],['Giao đến',HOME,'đã lưu'],['Mã giảm giá','FREESHIP15','tự áp']]},
+   b:[{t:'payinchat',shop:'Cơm Tấm Sà Bì Chưởng',items:'Cơm tấm sườn bì chả (thêm mỡ hành), Trà đá',to:HOME,method:'Thẻ ATM •••• 4821',total:70000,save:15000}]}
+ ]},
+
+/* ===== 9 HỘI VIÊN ===== */
+{id:'9.1',g:'9',m:'T12',p:'P1',t:'Tìm hiểu và so sánh các gói',
+ d:'"Green Plus có gì?", "nên mua gói nào?"; so sánh giá, quyền lợi, voucher, đối tượng phù hợp.',
+ l:'So sánh bằng một bảng ngắn, rồi tư vấn bằng chính số liệu sử dụng của khách: "với 20 chuyến/tháng, bạn tiết kiệm khoảng…".',
+ turns:[
+  {u:'Green Plus có gì? Nên mua gói nào?',s:'Đang so sánh các gói…',
+   intent:{n:'membership_info',h:'Tư vấn gói hội viên',c:.94,slots:[['Gói hỏi','Plus','nói'],['Yêu cầu','So sánh + tư vấn','nói']]},
+   b:[{t:'text',v:'3 gói hội viên (giá và quyền lợi minh họa):'},
+      {t:'member',hl:-1},
+      {t:'text',v:'Mỗi tháng bạn đi xe và đặt đồ ăn khoảng bao nhiêu lần?'},{t:'quick',items:['~20 chuyến, hay đặt đồ ăn','Thỉnh thoảng thôi']}]},
+  {u:'~20 chuyến, hay đặt đồ ăn',s:'Đang tính tiền tiết kiệm…',
+   intent:{n:'membership_recommend',h:'Gợi ý gói theo mức dùng',c:.9,slots:[['Đi xe','~20 chuyến/tháng','nói'],['Đặt đồ ăn','~12 đơn/tháng','lịch sử'],['Gợi ý','Plus · tiết kiệm ~171k/tháng','tính toán']]},
+   b:[{t:'text',v:'Với mức dùng của bạn, <b>Plus</b> có lợi nhất: tiết kiệm khoảng <b>171.000đ/tháng</b> sau khi trừ phí gói.'},
+      {t:'member',hl:1},
+      {t:'actions',items:[{l:'Mua gói Plus',p:1,n:{screen:'Mua gói hội viên',fields:[['Gói','Green Plus'],['Kỳ hạn','1 tháng'],['Giá','59.000đ'],['Phương thức','Thẻ ATM •••• 4821']],total:'59.000đ',btn:'Thanh toán & kích hoạt'}}]}]}
+ ]},
+{id:'9.2',g:'9',m:'T12',p:'P1',t:'Được hướng dẫn mua gói',
+ d:'Trợ lý hướng dẫn từng bước: chọn kỳ hạn → thanh toán → xác nhận; bấm nút là mở thẳng màn mua gói tương ứng.',
+ l:'Hỏi lựa chọn còn thiếu (kỳ hạn) ngay trong chat, rồi mở màn mua với lựa chọn đó đã chọn sẵn.',
+ turns:[
+  {u:'Mua gói Plus',s:'',
+   intent:{n:'membership_buy',h:'Mua gói',c:.97,slots:[['Gói','Green Plus','nói'],['Thiếu','Kỳ hạn','—']]},
+   b:[{t:'steps',items:['Chọn kỳ hạn','Thanh toán','Xác nhận kích hoạt'],done:0},
+      {t:'text',v:'Bạn muốn mua kỳ hạn nào?'},
+      {t:'terms'}]},
+  {u:'3 tháng',s:'Đang chuẩn bị màn mua gói…',
+   intent:{n:'membership_buy',h:'Mua gói',c:.98,slots:[['Gói','Green Plus','ngữ cảnh'],['Kỳ hạn','3 tháng · 159.000đ','nói'],['Phương thức','Thẻ ATM •••• 4821','đã lưu']]},
+   b:[{t:'steps',items:['Chọn kỳ hạn: 3 tháng','Thanh toán','Xác nhận kích hoạt'],done:1},
+      {t:'actions',items:[{l:'Mở màn mua gói Plus · 3 tháng',p:1,n:{screen:'Mua gói hội viên',fields:[['Gói','Green Plus'],['Kỳ hạn','3 tháng (tiết kiệm 18.000đ)'],['Tự động gia hạn','Bật'],['Phương thức','Thẻ ATM •••• 4821']],total:'159.000đ',btn:'Thanh toán & kích hoạt'}}]}]}
+ ]},
+{id:'9.3',g:'9',m:'T12',p:'P2',t:'Xem tình trạng gói, gia hạn, hủy',
+ d:'Trả lời "Gói của tôi còn bao lâu?"; hỗ trợ gia hạn, bật/tắt tự động gia hạn và hủy gói ngay trong chat.',
+ l:'Hủy và tắt gia hạn phải dễ như mua. Trước khi đổi, nói rõ khách sẽ mất gì và đến ngày nào.',
+ turns:[
+  {u:'Gói của tôi còn bao lâu?',s:'Đang kiểm tra gói…',
+   intent:{n:'membership_status',h:'Tình trạng gói',c:.98,slots:[['Gói','Green Plus','tài khoản'],['Hết hạn','19/10/2026 (còn 12 ngày)','tài khoản'],['Tự gia hạn','Đang bật','tài khoản']]},
+   b:[{t:'mstatus'}]},
+  {u:'Tắt tự động gia hạn',s:'',
+   intent:{n:'membership_autorenew',h:'Tắt tự gia hạn',c:.97,slots:[['Hành động','Tắt tự gia hạn','nói'],['Ảnh hưởng','Gói dừng sau 19/10/2026','tài khoản']]},
+   b:[{t:'confirm',v:'Tắt tự động gia hạn? Gói Plus vẫn dùng được đến hết <b>19/10/2026</b>, sau đó dừng và các voucher hội viên sẽ không còn.',yes:'Xác nhận tắt',done:'Đã tắt tự động gia hạn. Mình sẽ nhắc bạn trước ngày hết hạn 3 ngày.'}]}
+ ]},
+
+/* ===== 10 GỬI HÀNG ===== */
+{id:'10.1',g:'10',m:'T12',p:'P1',t:'Mô tả món hàng, được gợi ý dịch vụ',
+ d:'Dựa vào món hàng khách mô tả, trợ lý gợi ý dịch vụ phù hợp: Green Van, Express, 2H hoặc 4H.',
+ l:'Khách mô tả món đồ, không cần biết tên dịch vụ. Trợ lý chọn dịch vụ theo kích thước, độ gấp và giải thích vì sao.',
+ turns:[
+  {u:'Mình cần chuyển 1 cái tủ lạnh 2 cánh từ Cầu Giấy sang Long Biên',s:'Đang chọn dịch vụ phù hợp…',
+   intent:{n:'send_package',h:'Gửi hàng · chọn dịch vụ',c:.92,slots:[['Món hàng','Tủ lạnh 2 cánh','nói'],['Ước tính','~80 kg · 180×90×70 cm','suy luận'],['Gửi từ','Cầu Giấy','nói'],['Gửi đến','Long Biên','nói']]},
+   b:[{t:'text',v:'Tủ lạnh 2 cánh khá to và nặng, mình gợi ý <b>Green Van</b> (xe van chở hàng cồng kềnh).'},
+      {t:'services',items:[['Green Van','Hàng cồng kềnh đến 500 kg · có thể thêm bốc xếp','rec','385.000đ'],['Express','Chỉ nhận ≤ 30 kg','x',''],['2H / 4H','Chỉ nhận ≤ 30 kg','x','']]},
+      {t:'actions',items:[{l:'Tạo đơn Green Van',p:1,n:{screen:'Tạo đơn gửi hàng',fields:[['Dịch vụ','Green Van'],['Món hàng','Tủ lạnh 2 cánh (~80 kg)'],['Lấy hàng tại',HOME],['Giao đến','Long Biên (cần địa chỉ cụ thể)']],total:'~385.000đ',btn:'Tiếp tục'}}]}]}
+ ]},
+{id:'10.2',g:'10',m:'T12',p:'P1',t:'Hỏi phí gửi hàng',
+ d:'Trợ lý hỏi điểm gửi, điểm nhận, kích thước, khối lượng → báo phí dự kiến.',
+ l:'Hỏi gộp những thông tin còn thiếu trong một câu, có gợi ý bấm nhanh, rồi báo phí theo từng tốc độ giao.',
+ turns:[
+  {u:'Gửi hàng đi Hà Đông hết bao nhiêu?',s:'',
+   intent:{n:'shipping_fee',h:'Hỏi phí gửi hàng',c:.7,slots:[['Gửi đến','Hà Đông','nói'],['Thiếu','Món hàng, khối lượng, điểm gửi','—']]},
+   b:[{t:'text',v:'Bạn gửi món gì, nặng khoảng bao nhiêu, và gửi từ đâu?'},{t:'quick',items:['Hộp giày ~1kg, gửi từ nhà','Thùng sách ~10kg, từ công ty']}]},
+  {u:'Hộp giày ~1kg, gửi từ nhà',s:'Đang tính phí…',
+   intent:{n:'shipping_fee',h:'Báo phí',c:.95,slots:[['Món hàng','Hộp giày · ~1 kg · 35×25×15 cm','nói'],['Gửi từ',HOME,'đã lưu'],['Gửi đến','Hà Đông · ~9 km','ngữ cảnh']]},
+   b:[{t:'fares',items:[
+        ['Express','Giao ngay · ~45 phút',38000,{screen:'Tạo đơn gửi hàng',fields:[['Dịch vụ','Express'],['Món hàng','Hộp giày ~1 kg'],['Lấy hàng tại',HOME],['Giao đến','Hà Đông']],total:'38.000đ',btn:'Tiếp tục'}],
+        ['2H','Giao trong 2 giờ',28000,{screen:'Tạo đơn gửi hàng',fields:[['Dịch vụ','2H'],['Món hàng','Hộp giày ~1 kg'],['Lấy hàng tại',HOME],['Giao đến','Hà Đông']],total:'28.000đ',btn:'Tiếp tục'},'rec'],
+        ['4H','Giao trong 4 giờ',22000,{screen:'Tạo đơn gửi hàng',fields:[['Dịch vụ','4H'],['Món hàng','Hộp giày ~1 kg'],['Lấy hàng tại',HOME],['Giao đến','Hà Đông']],total:'22.000đ',btn:'Tiếp tục'}]],note:'Phí dự kiến, chưa gồm dịch vụ bổ sung.',cta:'Chọn'}]}
+ ]},
+{id:'10.3',g:'10',m:'T12',p:'P1',t:'Được nhắc giới hạn hàng hóa',
+ d:'Hỏi loại hàng, trọng lượng, kích thước; cảnh báo nếu vượt giới hạn dịch vụ.',
+ l:'Cảnh báo trước khi tạo đơn để khách không bị tài xế từ chối khi đến lấy hàng, và luôn kèm cách xử lý.',
+ turns:[
+  {u:'Gửi 1 bình gas 12kg và 1 thùng hàng 45kg bằng Express',s:'Đang kiểm tra giới hạn dịch vụ…',
+   intent:{n:'send_package',h:'Kiểm tra hàng hóa',c:.93,slots:[['Món 1','Bình gas 12 kg','nói'],['Món 2','Thùng hàng 45 kg','nói'],['Dịch vụ','Express (≤ 30 kg)','nói'],['Kết quả','1 hàng cấm · 1 vượt cân','quy định']]},
+   b:[{t:'badbox',v:'<b>Bình gas</b> thuộc danh mục hàng cấm vận chuyển (dễ cháy nổ). Mình không tạo đơn được cho món này.'},
+      {t:'warnbox',v:'<b>Thùng 45 kg</b> vượt giới hạn Express (tối đa 30 kg). Bạn có thể gửi bằng Green Van.'},
+      {t:'actions',items:[{l:'Gửi thùng 45 kg bằng Green Van',p:1,n:{screen:'Tạo đơn gửi hàng',fields:[['Dịch vụ','Green Van'],['Món hàng','Thùng hàng 45 kg'],['Lấy hàng tại',HOME]],total:'~180.000đ',btn:'Tiếp tục'}},{l:'Xem danh mục hàng cấm',g:1,toast:'Mở Trung tâm hỗ trợ · Hàng cấm gửi'}]}]}
+ ]},
+{id:'10.4',g:'10',m:'Q1',p:'P2',t:'Được gợi ý dịch vụ bổ sung',
+ d:'Tùy loại hàng, trợ lý gợi ý thêm: bảo hiểm, thu tiền hộ (COD), hỗ trợ bốc xếp, người đi kèm.',
+ l:'Chỉ gợi ý dịch vụ bổ sung liên quan đến món hàng cụ thể, mỗi gợi ý có lý do và giá, bật/tắt ngay trong chat.',
+ turns:[
+  {u:'Gửi laptop 25 triệu cho khách ở Ba Đình, thu tiền khi giao',s:'Đang chuẩn bị đơn…',
+   intent:{n:'send_package',h:'Gửi hàng · dịch vụ bổ sung',c:.94,slots:[['Món hàng','Laptop · giá trị 25.000.000đ','nói'],['Thu hộ','Có · 25.000.000đ','nói'],['Gửi đến','Ba Đình','nói'],['Gợi ý thêm','Bảo hiểm (giá trị cao)','suy luận']]},
+   b:[{t:'text',v:'Hàng giá trị cao, mình gợi ý bật thêm bảo hiểm. Thu tiền hộ đã bật theo yêu cầu của bạn.'},
+      {t:'addons',items:[['Thu tiền hộ (COD)','Thu 25.000.000đ từ người nhận','Phí 1% · 250.000đ',1],['Bảo hiểm hàng hóa','Đền bù đến 25.000.000đ nếu hư hỏng, mất','Phí 0,5% · 125.000đ',1],['Hỗ trợ bốc xếp','Không cần với hàng nhỏ','40.000đ',0]]},
+      {t:'actions',items:[{l:'Tiếp tục',p:1,next:1}]}]},
+  {u:'Ok, đặt Express',s:'Đang tạo đơn…',
+   intent:{n:'send_package',h:'Chốt đơn gửi hàng',c:.96,slots:[['Dịch vụ','Express','nói'],['Dịch vụ thêm','COD + Bảo hiểm','ngữ cảnh']]},
+   b:[{t:'text',v:'Đơn đã sẵn sàng, bạn xem lại và bấm đặt nhé.'},
+      {t:'actions',items:[{l:'Xem lại đơn hàng',p:1,n:{screen:'Xem lại đơn hàng',fields:[['Dịch vụ','Express'],['Món hàng','Laptop (dễ vỡ)'],['Lấy hàng tại',HOME],['Giao đến','Ba Đình · người nhận cần xác nhận địa chỉ'],['Thu hộ','25.000.000đ'],['Bảo hiểm','Có · 125.000đ']],total:'48.000đ + 375.000đ dịch vụ',btn:'Đặt đơn'}}]}]}
+ ]},
+{id:'10.5',g:'10',m:'Q1',p:'P2',t:'Xác nhận là xong: đơn đã điền sẵn',
+ d:'Xác nhận trong chat → mở màn "Xem lại đơn hàng" đã điền sẵn thông tin, chỉ cần bấm đặt.',
+ l:'Tóm tắt toàn bộ đơn trong chat trước khi mở màn native, để màn native chỉ còn việc bấm "Đặt đơn".',
+ turns:[
+  {u:'Gửi hộp giày cho Minh ở 25 Quang Trung, Hà Đông, số 0912 345 678, đi 2H',s:'Đang điền đơn…',
+   intent:{n:'send_package',h:'Tạo đơn gửi hàng đầy đủ',c:.96,slots:[['Món hàng','Hộp giày ~1 kg','ngữ cảnh'],['Người nhận','Minh · 0912 345 678','nói'],['Giao đến','25 Quang Trung, Hà Đông','nói'],['Dịch vụ','2H · 28.000đ','nói'],['Lấy hàng tại',HOME,'đã lưu']]},
+   b:[{t:'kvcard',h:'Đơn gửi hàng 2H',rows:[['Lấy hàng',HOME],['Người nhận','Minh · 0912 345 678'],['Giao đến','25 Quang Trung, Hà Đông'],['Món hàng','Hộp giày · ~1 kg'],['Phí','28.000đ']],
+       ctas:[{l:'Xem lại đơn hàng',p:1,n:{screen:'Xem lại đơn hàng',fields:[['Dịch vụ','2H · giao trong 2 giờ'],['Lấy hàng tại',HOME],['Người nhận','Minh · 0912 345 678'],['Giao đến','25 Quang Trung, Hà Đông'],['Món hàng','Hộp giày ~1 kg'],['Thanh toán','Người gửi trả · Thẻ •••• 4821']],total:'28.000đ',btn:'Đặt đơn'}},{l:'Sửa thông tin',g:1,toast:'Nói điều cần sửa, ví dụ "đổi sang 4H"'}]}]}
+ ]},
+
+/* ===== 11 CSKH ===== */
+{id:'11.1',g:'11',m:'T10',p:'P1',t:'Tra cứu câu hỏi thường gặp',
+ d:'Trợ lý trả lời các câu hỏi thường gặp dựa trên nội dung Support Center.',
+ l:'Trả lời ngắn theo bước, ghi rõ nguồn từ Trung tâm hỗ trợ, và kèm nút làm luôn việc tiếp theo (liên hệ tài xế).',
+ turns:[
+  {u:'Quên đồ trên xe thì làm sao?',s:'Đang tra Trung tâm hỗ trợ…',
+   intent:{n:'faq',h:'Hỏi đáp',c:.95,slots:[['Chủ đề','Thất lạc đồ trên xe','nói'],['Nguồn','Support Center · Tìm đồ thất lạc','tra cứu'],['Chuyến gần nhất','#XSM-90412 · 17:45 hôm nay','lịch sử']]},
+   b:[{t:'faq',steps:['Vào Lịch sử chuyến đi, chọn chuyến vừa đi','Bấm "Liên hệ tài xế" để gọi hoặc nhắn tin trong 24 giờ','Nếu không liên lạc được, gửi yêu cầu "Thất lạc đồ" cho CSKH'],src:'Trung tâm hỗ trợ · Tìm đồ thất lạc trên xe',
+       ctas:[{l:'Liên hệ tài xế chuyến 17:45',p:1,n:{screen:'Chi tiết chuyến đi',fields:[['Chuyến','#XSM-90412 · 17:45 hôm nay'],['Tài xế','Nguyễn Văn Hùng · 30A-512.47'],['Lộ trình','Keangnam → Tiệm Sách & Cà Phê Gió']],btn:'Gọi tài xế'}},{l:'Báo thất lạc',g:1,toast:'Chuyển sang luồng báo sự cố (11.2)'}]}]}
+ ]},
+{id:'11.2',g:'11',m:'T10',p:'P1',t:'Báo sự cố, trợ lý tóm tắt cho CSKH',
+ d:'Khách kể sự cố, trợ lý tự phân loại, tóm tắt và tạo ticket gửi CSKH; khách không phải kể lại từ đầu.',
+ l:'Tự gắn chuyến/đơn liên quan và các con số vào ticket, cho khách xem bản tóm tắt trước khi gửi.',
+ turns:[
+  {u:'Tài xế thu mình 150k tiền mặt nhưng app báo 120k, chuyến lúc 8h sáng nay',s:'Đang tìm chuyến và tóm tắt…',
+   intent:{n:'report_issue',h:'Báo sự cố',c:.94,slots:[['Phân loại','Sai cước · thu tiền mặt','phân loại'],['Chuyến','#XSM-88107 · 08:02 hôm nay','lịch sử'],['Chênh lệch','30.000đ','tính toán'],['Mức ưu tiên','Thường · phản hồi trong 24 giờ','quy tắc']]},
+   b:[{t:'text',v:'Mình đã tìm thấy chuyến và tóm tắt lại. Bạn kiểm tra rồi gửi nhé:'},
+      {t:'ticket',rows:[['Loại sự cố','Thu sai cước (tiền mặt)'],['Chuyến','#XSM-88107 · 08:02 · Car 4 chỗ'],['Cước trên app','120.000đ'],['Khách đã trả','150.000đ'],['Đề nghị','Hoàn 30.000đ']],sum:'Khách bị thu 150.000đ tiền mặt, cao hơn cước hiển thị 120.000đ.'},
+      {t:'actions',items:[{l:'Gửi cho CSKH',p:1,next:1},{l:'Sửa',g:1,toast:'Nói điều cần sửa trong tóm tắt'}]}]},
+  {u:'Gửi đi',s:'Đang tạo ticket…',
+   intent:{n:'report_issue',h:'Tạo ticket',c:.99,slots:[['Ticket','#CS-24817','hệ thống'],['Gửi tới','CSKH · nhóm Cước phí','định tuyến']]},
+   b:[{t:'okbox',v:'Đã tạo ticket <b>#CS-24817</b>. CSKH sẽ phản hồi trong 24 giờ, khoản hoàn (nếu có) về ví trong 3–5 ngày.'}]}
+ ]},
+{id:'11.3',g:'11',m:'T10',p:'P1',t:'Được chuyển sang nhân viên hỗ trợ',
+ d:'Khi vấn đề vượt khả năng xử lý, trợ lý chuyển khách sang trò chuyện trực tiếp với nhân viên hỗ trợ.',
+ l:'Chuyển người thật kèm bản tóm tắt để nhân viên không hỏi lại. Báo thời gian chờ dự kiến.',
+ turns:[
+  {u:'Tài khoản mình bị trừ tiền 2 lần cho cùng 1 đơn, mình muốn gặp nhân viên',s:'Đang kết nối nhân viên…',
+   intent:{n:'escalate',h:'Chuyển nhân viên',c:.97,slots:[['Lý do','Khách yêu cầu · trừ tiền 2 lần','nói'],['Đơn','#F-58213 · 255.000đ ×2','lịch sử'],['Ưu tiên','Cao (liên quan thanh toán)','quy tắc']]},
+   b:[{t:'text',v:'Mình chuyển bạn sang nhân viên ngay. Thời gian chờ khoảng <b>2 phút</b>.'},
+      {t:'ticket',rows:[['Gửi kèm cho nhân viên','Đơn #F-58213 bị trừ 255.000đ hai lần lúc 18:05 và 18:06, thẻ •••• 4821']],sum:''},
+      {t:'sys',v:'Nhân viên Thu Hà đã tham gia'},
+      {t:'agent',name:'Thu Hà · CSKH',v:'Chào anh Văn, em đã thấy 2 giao dịch của đơn #F-58213. Em hoàn ngay 1 giao dịch 255.000đ cho anh, tiền về thẻ trong 1–3 ngày làm việc ạ.'}]}
+ ]},
+
+/* ===== 12 TRẢI NGHIỆM CHAT ===== */
+{id:'12.1',g:'12',m:'T10',p:'P1',t:'Card địa điểm rõ ràng, dễ chọn',
+ d:'Thẻ quán/địa điểm hiển thị ảnh, đánh giá, khoảng cách, giờ mở cửa, mức giá; bố cục gọn, dễ lướt trên màn hình nhỏ.',
+ l:'Mỗi thẻ trả lời đủ 4 câu khách cần để quyết định: có ngon không, bao xa, còn mở không, giá bao nhiêu.',
+ turns:[
+  {u:'Quán phở ngon gần đây',s:'Đang tìm quán phở gần bạn…',
+   intent:{n:'discover_food',h:'Tìm quán',c:.95,slots:[['Món','Phở','nói'],['Vị trí',HERE,'GPS'],['Sắp xếp','Đánh giá × khoảng cách','mặc định']]},
+   b:[{t:'places',items:[
+        {n:'Phở Gánh Lò Đúc',c:'Phở bò',r:4.8,rv:'2,1k',d:'1,4 km',e:'~25 phút',pr:'60–85k',o:'Mở đến 22:00',w:'Bạn hay đặt quán này',ct:[{l:'Đặt món',p:1,n:SHOP('Phở Gánh Lò Đúc')},{l:'Gọi xe tới đây',n:RIDE({to:'Phở Gánh Lò Đúc',v:'Bike',price:'32.000đ'})}]},
+        {n:'Phở Bát Đàn Xưa',c:'Phở bò',r:4.6,rv:'980',d:'2,6 km',e:'~30 phút',pr:'55–75k',o:'Mở đến 21:30',w:'Nước dùng đậm, đông khách',ct:[{l:'Đặt món',p:1,n:SHOP('Phở Bát Đàn Xưa')},{l:'Gọi xe tới đây',n:RIDE({to:'Phở Bát Đàn Xưa',v:'Bike',price:'41.000đ'})}]},
+        {n:'Phở Gà Ta Hàng Hành',c:'Phở gà',r:4.7,rv:'1,4k',d:'1,9 km',e:'~28 phút',pr:'55–75k',o:'Mở đến 22:00',w:'Thanh, ít béo',ct:[{l:'Đặt món',p:1,n:SHOP('Phở Gà Ta Hàng Hành')},{l:'Gọi xe tới đây',n:RIDE({to:'Phở Gà Ta Hàng Hành',v:'Bike',price:'36.000đ'})}]}]}]}
+ ]},
+{id:'12.2',g:'12',m:'T10',p:'P1',t:'Nút hành động đúng ngữ cảnh',
+ d:'Quán ăn: "Đặt món", "Gọi xe tới đây", "Đặt nhóm"; địa điểm khác: "Gọi xe tới đây"; VP-OTA: "Đặt trên VP-OTA". Gần giờ ăn ưu tiên "Đặt món", ở xa ưu tiên "Gọi xe", quán đóng cửa thì ẩn "Đặt món".',
+ l:'Nút chính trên mỗi thẻ đổi theo tình huống. Ba thẻ dưới đây cho thấy ba quy tắc: gần giờ ăn, ở xa, và đóng cửa.',
+ turns:[
+  {u:'Gợi ý chỗ ăn tối và đi chơi cuối tuần',s:'Đang tìm…',
+   intent:{n:'discover_place',h:'Tìm địa điểm · nhiều loại',c:.85,slots:[['Giờ','18:30 · gần giờ ăn tối','giờ hiện tại'],['Quy tắc nút','Gần + giờ ăn → Đặt món · Xa → Gọi xe · Đóng cửa → ẩn Đặt món','quy tắc']]},
+   b:[{t:'places',items:[
+        {n:'Cơm Niêu Hà Thành',c:'Quán ăn · gần',r:4.8,d:'1,5 km',e:'~25 phút',pr:'80–150k',o:'Mở đến 22:00',w:'Nút chính: Đặt món (gần, giờ ăn tối)',ct:[{l:'Đặt món',p:1,n:SHOP('Cơm Niêu Hà Thành')},{l:'Gọi xe tới đây',n:RIDE({to:'Cơm Niêu Hà Thành',v:'Bike',price:'28.000đ'})},{l:'Đặt nhóm',n:{screen:'Đặt nhóm',fields:[['Quán','Cơm Niêu Hà Thành']],btn:'Tạo đơn nhóm'}}]},
+        {n:'Nhà hàng Sen Tây Hồ',c:'Buffet · xa',r:4.6,d:'9,4 km',e:'Xe ~28 phút',pr:'~450k/người',o:'Mở đến 22:00',w:'Nút chính: Gọi xe (ngoài vùng giao)',ct:[{l:'Gọi xe tới đây',p:1,n:RIDE({to:'Nhà hàng Sen Tây Hồ, 614 Lạc Long Quân',price:'135.000đ'})}]},
+        {n:'Bánh Cuốn Bà Hoành',c:'Quán ăn sáng',r:4.7,d:'1,1 km',e:'',pr:'40–60k',o:'Đã đóng cửa · mở 6:00 mai',cl:1,w:'Ẩn Đặt món vì quán đã đóng cửa',ct:[{l:'Gọi xe tới đây',n:RIDE({to:'Bánh Cuốn Bà Hoành',v:'Bike',price:'26.000đ',when:'Hẹn 06:30 · 08/10'})},{l:'Nhắc tôi lúc 6:00',g:1,toast:'Đã đặt nhắc 6:00 sáng mai'}]},
+        {n:'Vinpearl Resort Hạ Long',c:'Nghỉ dưỡng',r:4.7,d:'165 km',e:'',pr:'từ 2,1tr/đêm',o:'Còn phòng 10–11/10',w:'Nút chính: Đặt trên VP-OTA',ct:[{l:'Đặt trên VP-OTA',p:1,n:{screen:'VP-OTA · Đặt phòng',fields:[['Khách sạn','Vinpearl Resort Hạ Long'],['Nhận phòng','Thứ Bảy 10/10/2026'],['Trả phòng','Chủ Nhật 11/10/2026'],['Khách','2 người lớn']],total:'2.100.000đ',btn:'Tiếp tục đặt phòng'}},{l:'Gọi xe tới đây',n:RIDE({to:'Vinpearl Resort Hạ Long',v:'Car 7 chỗ',price:'1.950.000đ'})}]}]}]}
+ ]},
+{id:'12.3',g:'12',m:'T10',p:'P1',t:'Trả lời nhanh, không hiện suy luận dài',
+ d:'Thay chuỗi suy luận dài bằng một dòng trạng thái ngắn ("Đang tìm quán gần bạn…"); hiện kết quả trước, giải thích sau; khách bấm để xem chi tiết nếu muốn.',
+ l:'Khách đến để đặt, không để đọc quá trình. Một dòng trạng thái khi chờ, kết quả lên trước, phần "vì sao" thu gọn.',
+ turns:[
+  {u:'Tìm quán nướng cho 6 người tối thứ Sáu, có chỗ đỗ ô tô',s:'Đang tìm quán nướng gần bạn…',
+   intent:{n:'discover_food',h:'Tìm quán · nhiều điều kiện',c:.9,slots:[['Món','Nướng','nói'],['Số người','6','nói'],['Thời gian','Tối thứ Sáu 09/10','nói'],['Tiện ích','Có chỗ đỗ ô tô','nói']]},
+   b:[{t:'places',items:[
+        {n:'Nướng Ngói Sân Vườn',c:'Nướng than hoa',r:4.7,d:'3,2 km',e:'Xe ~15 phút',pr:'~250k/người',o:'Mở đến 23:00',w:'Bàn 6–8 người, bãi đỗ 20 ô tô',ct:[{l:'Gọi xe tới đây',p:1,n:RIDE({to:'Nướng Ngói Sân Vườn',v:'Car 7 chỗ',when:'Thứ Sáu 09/10 · 18:30',price:'98.000đ'})}]},
+        {n:'BBQ Garden 68',c:'BBQ Hàn',r:4.5,d:'4,0 km',e:'Xe ~18 phút',pr:'~299k/người',o:'Mở đến 22:30',w:'Phòng riêng 6 người, có hầm xe',ct:[{l:'Gọi xe tới đây',p:1,n:RIDE({to:'BBQ Garden 68',v:'Car 7 chỗ',when:'Thứ Sáu 09/10 · 18:30',price:'112.000đ'})}]}]},
+      {t:'reason',sum:'Xem cách trợ lý tìm',items:['Lọc quán nướng trong bán kính 5 km: 23 quán','Giữ quán có bàn ≥ 6 người: 11 quán','Giữ quán có chỗ đỗ ô tô: 4 quán','Xếp theo đánh giá và khoảng cách, hiện 2 quán đầu']}]}
+ ]},
+{id:'12.4',g:'12',m:'T10',p:'P1',t:'Luôn mở cuộc trò chuyện mới khi mở lại app',
+ d:'Mỗi lần khách tắt hẳn ứng dụng rồi mở lại, trợ lý bắt đầu bằng cuộc trò chuyện mới. Các cuộc trò chuyện trước vẫn lưu trong lịch sử.',
+ l:'Màn hình sạch mỗi lần mở giúp yêu cầu mới không bị lẫn ngữ cảnh cũ; lịch sử vẫn ở một chạm.',
+ turns:[
+  {u:null,s:'',
+   intent:{n:'new_session',h:'Phiên mới',c:1,slots:[['Sự kiện','Mở lại app sau khi tắt hẳn','hệ thống'],['Ngữ cảnh cũ','Không mang sang','quy tắc'],['Lịch sử','3 cuộc trò chuyện gần đây','lưu trữ']]},
+   b:[{t:'sys',v:'Cuộc trò chuyện mới · 18:30'},{t:'hello',v:'Chào '+ME+', mình giúp gì được?',s:'Đặt xe, đặt món, gửi hàng hay hỏi về tài khoản.'},{t:'history'}]}
+ ]},
+{id:'12.5',g:'12',m:'Q1',p:'P2',t:'Nói thay vì gõ',
+ d:'Nhập mọi yêu cầu bằng giọng nói tiếng Việt: tìm quán, đặt xe, đặt món. Hiển thị chữ đã nhận để khách sửa trước khi gửi.',
+ l:'Hiện chữ nhận được trong ô nhập để khách sửa trước khi gửi; giọng nói chỉ thay việc gõ, không tự gửi yêu cầu.',
+ turns:[
+  {voice:1,u:'Đặt xe đi Aeon Mall Long Biên lúc 7 giờ tối nay',s:'Đang chuẩn bị chuyến hẹn giờ…',
+   intent:{n:'schedule_ride',h:'Đặt xe hẹn giờ (từ giọng nói)',c:.93,slots:[['Đầu vào','Giọng nói → văn bản','giọng nói'],['Điểm đến','Aeon Mall Long Biên','nói'],['Thời gian đón','19:00 hôm nay','nói'],['Điểm đón',HERE,'GPS']]},
+   b:[{t:'trip',from:HERE,to:'Aeon Mall Long Biên',meta:'Hẹn 19:00 hôm nay · ~28 phút · Car 4 chỗ',price:142000,
+       ctas:[{l:'Đặt xe hẹn giờ',p:1,n:RIDE({screen:'Đặt xe hẹn giờ',to:'Aeon Mall Long Biên',when:'19:00 · hôm nay',price:'142.000đ'})}]}]}
+ ]},
+];
+
+const MONTHS={T10:'Tháng 10',T11:'Tháng 11',T12:'Tháng 12',Q1:'Q1 2027'};
+const SRC_CTX=['ngữ cảnh','ghi nhớ','lịch sử','đã lưu','thói quen'];
+
+/* ---------- Helpers ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const hue=s=>{let h=0;for(const c of s)h=(h*31+c.charCodeAt(0))%360;return h};
+const ini=s=>s.split(/\s+/).filter(w=>/^[A-ZÀ-Ỹ]/u.test(w)).slice(0,2).map(w=>w[0]).join('')||s[0];
+const tile=(name,cls='',extra='')=>`<div class="tile ${cls}" style="--h:${hue(name)}">${esc(ini(name))}${extra}</div>`;
+const REG=[];
+const cta=c=>{REG.push(c);return `<button type="button" class="btn ${c.p?'p':''} ${c.g?'ghost':''}" data-cta="${REG.length-1}">${esc(c.l)}</button>`};
+const ctas=list=>list&&list.length?`<div class="ctas">${list.map(cta).join('')}</div>`:'';
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------- Block renderers ---------- */
+const R={
+ text:b=>`<div class="b-text">${b.v}</div>`,
+ note:b=>`<div class="b-text" style="font-size:12.5px;color:var(--a-mute)">${b.v}</div>`,
+ sys:b=>`<div class="sys" style="align-self:center">${esc(b.v)}</div>`,
+ hello:b=>`<div class="hello">${esc(b.v)}<small>${esc(b.s)}</small></div>`,
+ warnbox:b=>`<div class="warn">${b.v}</div>`,
+ badbox:b=>`<div class="bad-box">${b.v}</div>`,
+ okbox:b=>`<div class="card" style="background:var(--a-good-soft);border-color:#bfe5cd;font-size:12.5px">${b.v}</div>`,
+ places:b=>`<div class="hscroll">${b.items.map(p=>`
+   <div class="pc ${p.cl?'dim':''}">
+     ${tile(p.n,'pc-img',p.e?`<span class="eta">${esc(p.e)}</span>`:'')}
+     <div class="pc-body">
+       <div class="pc-top"><b>${esc(p.n)}</b><span class="rt">★ ${String(p.r).replace('.',',')}${p.rv?` <span class="meta">(${p.rv})</span>`:''}</span></div>
+       <div class="meta">${esc(p.c)} · ${esc(p.d)} · ${esc(p.pr)}</div>
+       <div class="open ${p.cl?'bad':''}">${esc(p.o)}</div>
+       ${p.ok?`<div class="ok">${esc(p.ok)}</div>`:''}
+       <div class="why">${esc(p.w)}</div>
+       ${ctas(p.ct)}
+     </div></div>`).join('')}</div>`,
+ dest:b=>`<div class="card"><div class="list">${b.items.map(([n,a,d,nat])=>`
+   <div class="li"><div class="l"><b>${esc(n)}</b><small>${esc(a)} · ${esc(d)}</small></div>${cta({l:'Đặt xe',p:1,n:nat})}</div>`).join('')}</div></div>`,
+ trip:b=>`<div class="card">
+   <div class="trip"><span class="dot"></span><div><small>Điểm đón</small><br>${esc(b.from)}</div>
+   ${b.stop?`<span class="ln"></span><span></span><span class="dot" style="border-color:var(--a-warn)"></span><div><small>Điểm dừng</small><br>${esc(b.stop)}</div>`:''}
+   <span class="ln"></span><span></span><span class="dot e"></span><div><small>Điểm đến</small><br>${esc(b.to)}</div></div>
+   <div class="row"><span class="sub">${esc(b.meta)}</span><span class="price">${vnd(b.price)}</span></div>
+   ${ctas(b.ctas)}</div>`,
+ fares:b=>`<div class="card"><div class="list">${b.items.map(([n,s,pr,nat,f])=>`
+   <div class="li ${f==='rec'?'rec':''}"><div class="l"><b>${esc(n)}</b>${f==='rec'?'<span class="tag">Gợi ý</span>':''}${f==='w'?'<span class="tag w">Chật</span>':''}${f==='x'?'<span class="tag bad">Không hợp</span>':''}<small>${esc(s)}</small></div>
+   <div style="display:flex;align-items:center;gap:8px">${pr?`<span class="price">${vnd(pr)}</span>`:''}${nat?cta({l:b.cta||'Đặt',p:f==='rec',n:nat}):''}</div></div>`).join('')}</div>
+   ${b.note?`<div class="sub">${esc(b.note)}</div>`:''}</div>`,
+ dishes:b=>`<div class="card"><div><h4>${esc(b.shop)}</h4><div class="sub">${esc(b.sub)}</div></div>
+   <div class="dishes">${b.items.map(([n,k,p])=>`<div class="dish">${tile(n)}<div class="nm">${esc(n)}<small>${esc(k)}</small></div><span class="price">${vnd(p)}</span></div>`).join('')}</div>
+   <div class="tot"><span>Tổng</span><span>${vnd(b.total)}</span></div>${ctas(b.ctas)}</div>`,
+ gallery:b=>`<div class="gal">${b.items.map(([n,p])=>`<div class="g">${tile(n)}<div class="gi"><span>${esc(n)}</span><div class="row"><span class="price">${vnd(p)}</span>${cta({l:'+ Thêm',toast:'Đã thêm "'+n+'" vào giỏ'})}</div></div></div>`).join('')}</div>
+   ${ctas([{l:'Xem giỏ hàng',p:1,n:FOOD({shop:b.shop,items:[['Gà nướng mắc khén',1,129000]],total:'129.000đ'})}])}`,
+ cart:b=>{const live=b.items.filter(i=>i[3]!=='rem');const sub=live.reduce((s,i)=>s+i[1]*i[2],0);
+   return `<div class="card"><div class="row"><h4>Giỏ hàng · ${esc(b.shop)}</h4>${b.items.some(i=>i[3]==='mem')?'<span class="tag">Theo ghi nhớ</span>':''}</div>
+   <div class="list">${b.items.map(([n,q,p,f,note])=>`<div class="li ${f==='add'?'add':''} ${f==='rem'?'rem':''}"><div class="l">${q}× ${esc(n)}${f==='add'?'<span class="tag g">Mới thêm</span>':''}${f==='rem'?'<span class="tag bad">Đã bỏ</span>':''}${note?`<small>${esc(note)}${f==='mem'?' · theo ghi nhớ':''}</small>`:''}</div><span class="price">${vnd(q*p)}</span></div>`).join('')}</div>
+   <div class="row sub"><span>Phí giao</span><span>${b.fee?vnd(b.fee):(b.feeNote||'Miễn phí')}</span></div>
+   <div class="tot"><span>Tổng</span><span>${vnd(sub+b.fee)}</span></div>${ctas(b.ctas)}</div>`},
+ map:b=>b.kind==='air'?`<div class="map"><svg viewBox="0 0 320 150" role="img" aria-label="Sơ đồ điểm đón nhà ga T2">
+   <rect x="0" y="0" width="320" height="150" fill="#eef3f2"/>
+   <rect x="20" y="16" width="280" height="54" rx="6" fill="#d7e3e1"/>
+   <text x="160" y="40" text-anchor="middle" font-size="12" fill="#3d5250" font-weight="600">Nhà ga T2 · Tầng 1 · Khu đến</text>
+   <text x="160" y="56" text-anchor="middle" font-size="10" fill="#5f7473">Nhận hành lý</text>
+   ${[1,2,3,4,5].map(i=>`<rect x="${20+i*46}" y="66" width="22" height="8" fill="${i===4?'#00a19a':'#a9bcb9'}"/><text x="${31+i*46}" y="86" text-anchor="middle" font-size="9" fill="#5f7473">Cửa ${i}</text>`).join('')}
+   <rect x="20" y="96" width="280" height="16" fill="#c6d3d1"/><text x="26" y="108" font-size="9" fill="#3d5250">Làn 1–2 · Taxi</text>
+   <rect x="20" y="118" width="280" height="16" fill="#cfe9e6"/><text x="26" y="130" font-size="9" fill="#00807a" font-weight="600">Làn 3 · Xe công nghệ</text>
+   <path d="M215 76 L215 92 L262 92 L262 118" fill="none" stroke="#00a19a" stroke-width="2.5" stroke-dasharray="5 4"/>
+   <circle cx="262" cy="126" r="7" fill="#b42318"/><text x="262" y="129.5" text-anchor="middle" font-size="8" fill="#fff" font-weight="700">C12</text>
+   </svg></div>`:`<div class="map"><svg viewBox="0 0 320 130" role="img" aria-label="Sơ đồ cổng đón Royal City">
+   <rect x="0" y="0" width="320" height="130" fill="#eef3f2"/>
+   <rect x="40" y="14" width="240" height="70" rx="8" fill="#d7e3e1"/>
+   <text x="160" y="46" text-anchor="middle" font-size="12" fill="#3d5250" font-weight="600">Vincom Mega Mall Royal City</text>
+   <text x="160" y="62" text-anchor="middle" font-size="10" fill="#5f7473">Thang cuốn B1 → sảnh R4</text>
+   ${['R1','R2','R3','R4','R5','R6'].map((g,i)=>`<rect x="${56+i*38}" y="80" width="18" height="8" fill="${g==='R4'?'#00a19a':'#a9bcb9'}"/><text x="${65+i*38}" y="100" text-anchor="middle" font-size="9" fill="${g==='R4'?'#00807a':'#5f7473'}" font-weight="${g==='R4'?700:400}">${g}</text>`).join('')}
+   <rect x="0" y="108" width="320" height="18" fill="#c6d3d1"/><text x="10" y="121" font-size="9" fill="#3d5250">Đường Nguyễn Trãi</text>
+   <circle cx="179" cy="117" r="7" fill="#b42318"/><text x="179" y="120.5" text-anchor="middle" font-size="7" fill="#fff" font-weight="700">R4</text>
+   </svg></div>`,
+ steps:b=>`<div class="card"><div class="steps">${b.items.map((s,i)=>`<div class="st ${b.done!=null&&i<b.done?'done':''}">${esc(s)}</div>`).join('')}</div></div>`,
+ actions:b=>`<div class="ctas" style="padding:0">${b.items.map(cta).join('')}</div>`,
+ quick:b=>`<div class="chipsin">${b.items.map(q=>cta({l:q,g:1,say:q})).join('')}</div>`,
+ memory:b=>`<div class="card"><div class="list" data-mem>${b.items.map(m=>`<div class="li"><div class="l">${esc(m)}</div><div style="display:flex;gap:6px"><button type="button" class="btn ghost" data-memedit>Sửa</button><button type="button" class="btn ghost" data-memdel>Xóa</button></div></div>`).join('')}</div><div class="sub">Bạn cũng có thể nói "quên ghi chú không hành đi".</div></div>`,
+ rating:b=>`<div class="card" data-rating><h4>${esc(b.target)}</h4><div class="stars">${[1,2,3,4,5].map(i=>`<button type="button" data-star="${i}" aria-label="${i} sao">★</button>`).join('')}</div>
+   ${b.tags?`<div class="chipsin">${b.tags.map(t=>`<button type="button" class="btn ghost" data-tagtoggle>${esc(t)}</button>`).join('')}</div>`:''}
+   <input class="inp" placeholder="${esc(b.ph)}" aria-label="Nhận xét"><button type="button" class="btn p block" data-ratesend disabled>Gửi đánh giá</button></div>`,
+ vouchers:b=>`<div class="card"><h4>Mã giảm giá của bạn</h4><div class="list">${b.items.map(([c,d,v,best])=>`<div class="li ${best?'rec':''}"><div class="l"><b class="mono" style="font-size:12px">${c}</b>${best?'<span class="tag">Đã áp · tốt nhất</span>':''}<small>${esc(d)}</small></div><span class="price">−${vnd(v)}</span></div>`).join('')}</div></div>`,
+ paysum:b=>`<div class="card"><div class="list">${b.rows.map(([k,v])=>`<div class="li"><span>${esc(k)}</span><span class="price" ${v<0?'style="color:var(--a-good)"':''}>${v<0?'−'+vnd(-v):vnd(v)}</span></div>`).join('')}</div>
+   <div class="tot"><span>Tổng thanh toán</span><span>${vnd(b.total)}</span></div><div class="saving">Bạn tiết kiệm ${vnd(b.save)}</div>${ctas(b.ctas)}</div>`,
+ payinchat:b=>`<div class="card" data-pay><h4>${esc(b.shop)}</h4><dl class="kv"><dt>Món</dt><dd>${esc(b.items)}</dd><dt>Giao đến</dt><dd>${esc(b.to)}</dd><dt>Thanh toán</dt><dd>${esc(b.method)}</dd><dt>Mã</dt><dd>FREESHIP15 · −${vnd(b.save)}</dd></dl>
+   <div class="tot"><span>Tổng</span><span>${vnd(b.total)}</span></div>
+   <button type="button" class="btn p block" data-paynow>Xác nhận & thanh toán ${vnd(b.total)}</button><div class="sub" style="text-align:center">Chỉ trừ tiền khi bạn bấm xác nhận</div></div>`,
+ member:b=>{const cols=[['Pass','29.000đ','2 chuyến −20%','—','Thỉnh thoảng đi xe'],['Plus','59.000đ','10 chuyến −20%','6 mã freeship','Đi xe + đặt đồ ăn đều'],['VIP','149.000đ','30 chuyến −25%','Freeship không giới hạn','Đi xe hằng ngày']];
+   const rows=[['Giá/tháng',1],['Đi xe',2],['Đồ ăn',3],['Phù hợp',4]];
+   return `<div class="card" style="padding:8px 10px;overflow-x:auto"><table class="tbl"><thead><tr><th></th>${cols.map((c,i)=>`<th class="${i===b.hl?'hl':''}">${c[0]}${i===b.hl?' ✓':''}</th>`).join('')}</tr></thead><tbody>${rows.map(([k,j])=>`<tr><th style="font-weight:500;color:var(--a-mute)">${k}</th>${cols.map((c,i)=>`<td class="${i===b.hl?'hl':''}">${c[j]}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`},
+ terms:()=>`<div class="chipsin">${[['1 tháng','59.000đ'],['3 tháng','159.000đ'],['12 tháng','590.000đ']].map(([k,v])=>cta({l:k+' · '+v,g:1,say:k})).join('')}</div>`,
+ mstatus:()=>`<div class="card"><div class="row"><h4>Green Plus</h4><span class="tag g">Đang hoạt động</span></div>
+   <dl class="kv"><dt>Hết hạn</dt><dd>19/10/2026 · còn 12 ngày</dd><dt>Voucher đi xe</dt><dd>7/10 đã dùng</dd><dt>Freeship đồ ăn</dt><dd>4/6 đã dùng</dd><dt>Đã tiết kiệm</dt><dd>186.000đ tháng này</dd></dl>
+   <div class="tog"><div>Tự động gia hạn<small>Gia hạn 59.000đ ngày 19/10</small></div><button type="button" class="sw" role="switch" aria-checked="true" aria-label="Tự động gia hạn" data-sw></button></div>
+   ${ctas([{l:'Gia hạn ngay',p:1,n:{screen:'Gia hạn gói',fields:[['Gói','Green Plus'],['Kỳ hạn','1 tháng · đến 19/11/2026'],['Phương thức','Thẻ ATM •••• 4821']],total:'59.000đ',btn:'Thanh toán'}},{l:'Hủy gói',g:1,n:{screen:'Hủy gói hội viên',fields:[['Gói','Green Plus'],['Hiệu lực đến','19/10/2026'],['Voucher còn lại','3 chuyến, 2 freeship (mất khi hết hạn)']],btn:'Xác nhận hủy gói'}}])}</div>`,
+ confirm:b=>`<div class="card" data-confirm><div style="font-size:12.5px">${b.v}</div><div class="ctas" style="padding:0"><button type="button" class="btn p" data-yes>${esc(b.yes)}</button><button type="button" class="btn ghost" data-no>Giữ nguyên</button></div><div class="sub" hidden data-done>${esc(b.done)}</div></div>`,
+ services:b=>`<div class="card"><div class="list">${b.items.map(([n,d,f,p])=>`<div class="li ${f==='rec'?'rec':''}"><div class="l"><b>${n}</b>${f==='rec'?'<span class="tag">Gợi ý</span>':''}${f==='x'?'<span class="tag bad">Không nhận</span>':''}<small>${esc(d)}</small></div>${p?`<span class="price">~${p}</span>`:''}</div>`).join('')}</div></div>`,
+ addons:b=>`<div class="card"><h4>Dịch vụ bổ sung</h4>${b.items.map(([n,d,p,on])=>`<div class="tog"><div>${esc(n)}<small>${esc(d)} · ${esc(p)}</small></div><button type="button" class="sw" role="switch" aria-checked="${on?'true':'false'}" aria-label="${esc(n)}" data-sw></button></div>`).join('')}</div>`,
+ kvcard:b=>`<div class="card"><h4>${esc(b.h)}</h4><dl class="kv">${b.rows.map(([k,v])=>`<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>${ctas(b.ctas)}</div>`,
+ faq:b=>`<div class="card"><div class="steps">${b.steps.map(s=>`<div class="st">${esc(s)}</div>`).join('')}</div><div class="src">Nguồn: ${esc(b.src)}</div>${ctas(b.ctas)}</div>`,
+ ticket:b=>`<div class="card"><div class="row"><h4>Tóm tắt gửi CSKH</h4><span class="tag w">Tự điền</span></div>${b.sum?`<div style="font-size:12.5px">${esc(b.sum)}</div>`:''}<dl class="kv">${b.rows.map(([k,v])=>`<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl></div>`,
+ agent:b=>`<div class="agent"><div class="av">TH</div><div><div class="sub" style="font-size:11.5px;color:var(--a-mute)">${esc(b.name)}</div><div class="b-text">${esc(b.v)}</div></div></div>`,
+ reason:b=>`<details class="reason"><summary>▸ ${esc(b.sum)}</summary><ol>${b.items.map(i=>`<li>${esc(i)}</li>`).join('')}</ol></details>`,
+ pro:b=>`<div class="proact">${b.items.map(([t,s,l,n])=>`<div class="card"><div class="row"><div><h4>${esc(t)}</h4><div class="sub">${esc(s)}</div></div>${cta({l,p:1,n})}</div></div>`).join('')}</div>`,
+ alts:b=>`<div class="card"><div class="list">${b.items.map(([t,s,l,n])=>`<div class="li"><div class="l"><b>${esc(t)}</b><small>${esc(s)}</small></div>${cta({l:'Chọn',p:1,n})}</div>`).join('')}</div></div>`,
+ history:()=>`<div class="card"><div class="row"><h4>Trò chuyện trước</h4><span class="sub">Lưu trong lịch sử</span></div><div class="list">${[['Đặt xe đi sân bay Nội Bài','Hôm qua · 21:10'],['Bún chả gần đây, rẻ hơn','Thứ Hai · 12:05'],['Báo sự cố cước phí','05/10 · 08:40']].map(([t,d])=>`<div class="li"><div class="l">${esc(t)}<small>${esc(d)}</small></div>${cta({l:'Mở',g:1,toast:'Mở lại cuộc trò chuyện cũ (chỉ xem)'})}</div>`).join('')}</div></div>`,
+};
+
+/* ---------- State & rendering ---------- */
+let cur=null, step=0, filter='all', busy=false, lastNative=null, vTimer=null;
+const chat=$('#chat'), sugg=$('#sugg'), input=$('#msg');
+
+function scroll(){chat.scrollTop=chat.scrollHeight}
+function addHTML(html){const d=document.createElement('div');d.innerHTML=html;const el=d.firstElementChild;chat.appendChild(el);scroll();return el}
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('show'),1800)}
+
+function visible(){return UC.filter(u=>filter==='all'||u.m===filter)}
+
+function renderFilters(){
+  const opts=[['all','Tất cả'],['T10','T10'],['T11','T11'],['T12','T12'],['Q1','Q1/2027']];
+  $('#filters').innerHTML=opts.map(([k,l])=>`<button type="button" data-f="${k}" aria-pressed="${filter===k}">${l} <span class="mono" style="opacity:.7">${k==='all'?UC.length:UC.filter(u=>u.m===k).length}</span></button>`).join('');
+}
+function renderNav(){
+  const v=visible();
+  $('#navlist').innerHTML=GROUPS.map(([gid,gname])=>{const items=v.filter(u=>u.g===gid);if(!items.length)return '';
+    return `<div class="ng"><h3><span class="mono">${gid}</span>${esc(gname)}</h3></div>`+items.map(u=>`<button type="button" class="ni" data-uc="${u.id}" aria-current="${cur&&cur.id===u.id}"><span class="id">${u.id}</span><span class="tt">${esc(u.t)}<span class="pri ${u.p.toLowerCase()}">${u.p}</span></span><span class="mo">${u.m==='Q1'?'Q1/27':u.m}</span></button>`).join('')}).join('');
+  $('#ucsel').innerHTML=GROUPS.map(([gid,gname])=>`<optgroup label="${gid} · ${esc(gname)}">${UC.filter(u=>u.g===gid).map(u=>`<option value="${u.id}" ${cur&&cur.id===u.id?'selected':''}>${u.id} · ${esc(u.t)} (${MONTHS[u.m]})</option>`).join('')}</optgroup>`).join('');
+  const a=document.querySelector('.ni[aria-current="true"]');if(a)a.scrollIntoView({block:'nearest'});
+}
+function renderInfo(){
+  const g=GROUPS.find(x=>x[0]===cur.g);
+  $('#ucinfo').innerHTML=`<div class="uc-id">${cur.id} · ${esc(g[1])}</div><div class="uc-t">${esc(cur.t)}</div><p class="uc-d">${esc(cur.d)}</p>
+   <div class="chips"><span class="chip a">${cur.p} · ${cur.p==='P1'?'ưu tiên cao':'ưu tiên thường'}</span><span class="chip a">Ra mắt ${MONTHS[cur.m]}</span><span class="chip">${cur.turns.length} lượt demo</span></div>
+   <div class="prog" aria-label="Tiến độ demo">${cur.turns.map((_,i)=>`<i class="${i<step?'on':''}"></i>`).join('')}</div>`;
+  $('#lesson').textContent=cur.l;
+}
+function renderIntent(it){
+  if(!it){$('#intent').innerHTML='<p class="empty">Gửi một yêu cầu để xem trợ lý tách ý định và thông tin.</p>';return}
+  $('#intent').innerHTML=`<div class="intent"><code>${esc(it.n)}</code><b>${esc(it.h)}</b><span class="conf">Độ chắc chắn <span class="bar"><i style="width:${Math.round(it.c*100)}%"></i></span> <span class="mono">${Math.round(it.c*100)}%</span></span></div>
+   <table class="slots"><tbody>${it.slots.map(([k,v,s])=>`<tr><td>${esc(k)}</td><td>${esc(v)}</td><td><span class="srcp ${SRC_CTX.includes(s)?'ctx':''}">${esc(s)}</span></td></tr>`).join('')}</tbody></table>`;
+}
+function renderHandoff(n,state){
+  if(!n){$('#handoff').innerHTML='<p class="empty">Chưa chuyển. Bấm nút hành động trên thẻ để mở màn hình đã điền sẵn.</p>';return}
+  $('#handoff').innerHTML=`<div class="nlog"><div class="nstate">${esc(n.screen)} <span class="pill ${state==='done'?'done':'go'}">${state==='done'?'Khách đã xác nhận':'Đang mở · chờ khách xác nhận'}</span></div>
+   <table class="slots"><tbody>${n.fields.map(([k,v])=>`<tr><td>${esc(k)}</td><td>${esc(v)}</td><td><span class="srcp ctx">điền sẵn</span></td></tr>`).join('')}
+   ${n.items?`<tr><td>Món</td><td>${n.items.map(([a,q])=>esc(q+'× '+a)).join('<br>')}</td><td><span class="srcp ctx">điền sẵn</span></td></tr>`:''}
+   ${n.total?`<tr><td>Tổng</td><td><b>${esc(n.total)}</b></td><td></td></tr>`:''}</tbody></table></div>`;
+}
+
+function showSugg(){
+  const nx=cur.turns[step];
+  let h='';
+  if(nx){ if(nx.u==null){h=`<button type="button" data-next>Xem bước tiếp theo</button>`} else h=`<button type="button" data-next>${esc(nx.voice?'Bấm micro để nói':nx.u)}</button>`; }
+  h+=`<button type="button" class="rs" data-restart>Chạy lại use case</button>`;
+  const i=UC.indexOf(cur); if(UC[i+1]) h+=`<button type="button" class="rs" data-goto="${UC[i+1].id}">Tiếp: ${UC[i+1].id} ${esc(UC[i+1].t)}</button>`;
+  sugg.innerHTML=h;
+}
+
+function wait(ms){return new Promise(r=>setTimeout(r,reduce?0:ms))}
+
+async function playTurn(custom){
+  if(busy||!cur)return; const t=cur.turns[step]; if(!t)return;
+  if(t.voice&&custom==null){startVoice(t);return}
+  busy=true; sugg.innerHTML='';
+  const token=cur.id;
+  if(t.img) addHTML(`<div class="uimg tile" style="--h:${hue(t.img)}">${esc(t.img)}</div>`);
+  if(t.u!=null) addHTML(`<div class="msg u">${esc(custom||t.u)}</div>`);
+  if(t.s){ const st=addHTML(`<div class="status"><span class="dots"><i></i><i></i><i></i></span>${esc(t.s)}</div>`); await wait(850); st.remove(); }
+  else await wait(t.u!=null?350:150);
+  if(!cur||cur.id!==token){busy=false;return}
+  const wrap=addHTML(`<div class="msg b"></div>`);
+  wrap.innerHTML=t.b.map(b=>R[b.t]?R[b.t](b):'').join('');
+  renderIntent(t.intent); step++; renderInfo(); busy=false; showSugg();
+  requestAnimationFrame(()=>{const top=wrap.offsetTop-12;chat.scrollTop=Math.max(top-(chat.clientHeight-wrap.offsetHeight>0?0:0),top)});
+}
+
+function closeNative(){const n=$('#native');n.classList.remove('show');n.setAttribute('aria-hidden','true')}
+function openNative(n){
+  lastNative=n;
+  const el=$('#native');
+  el.innerHTML=`<div class="nhead"><button type="button" data-back>‹ Trò chuyện</button><b>${esc(n.screen)}</b></div>
+   <div class="nbody"><div class="nbanner">Thông tin dưới đây đã được điền sẵn từ cuộc trò chuyện. Kiểm tra lại rồi xác nhận.</div>
+   <div class="nf">${n.fields.map(([k,v])=>`<div class="nfr"><span>${esc(k)}</span><b>${esc(v)}<span class="ai">AI</span></b></div>`).join('')}</div>
+   ${n.items?`<div class="nf">${n.items.map(([a,q,p])=>`<div class="nfr"><span>${q}× ${esc(a)}</span><b>${vnd(q*p)}</b></div>`).join('')}</div>`:''}
+   </div>
+   <div class="nfoot">${n.total?`<div class="tot"><span>Tổng</span><span>${esc(n.total)}</span></div>`:''}<button type="button" class="btn p block" data-confirmnative>${esc(n.btn)}</button><small>Khách là người xác nhận cuối cùng</small></div>`;
+  el.classList.add('show');el.setAttribute('aria-hidden','false');
+  renderHandoff(n,'open');
+}
+
+function resetChat(){clearInterval(vTimer);$('#mic').classList.remove('rec');input.placeholder='Nhắn cho trợ lý…';chat.innerHTML='';REG.length=0;closeNative();input.value='';input.classList.remove('listen');$('#vhint').hidden=true}
+
+function select(id){
+  const u=UC.find(x=>x.id===id); if(!u)return;
+  cur=u; step=0; busy=false; resetChat();
+  renderNav(); renderInfo(); renderIntent(null); renderHandoff(null);
+  try{history.replaceState(null,'','#uc'+id)}catch(e){}
+  playTurn();
+}
+
+/* Voice demo */
+function startVoice(t){
+  const mic=$('#mic'); mic.classList.add('rec'); input.value=''; input.classList.add('listen'); input.placeholder='Đang nghe…';
+  $('#vhint').hidden=false; $('#vhint').innerHTML='<span class="wave">'+Array.from({length:14},(_,i)=>`<i style="animation-delay:${(i%5)*.12}s"></i>`).join('')+'</span>';
+  sugg.innerHTML='';
+  const words=t.u.split(' '); let i=0; clearInterval(vTimer);
+  vTimer=setInterval(()=>{input.value=words.slice(0,++i).join(' ');if(i>=words.length){clearInterval(vTimer);mic.classList.remove('rec');input.placeholder='Nhắn cho trợ lý…';$('#vhint').textContent='Đã nhận giọng nói. Sửa chữ nếu cần rồi bấm gửi.';input.focus();}},reduce?0:170);
+}
+
+/* Free text router */
+const ROUTES=[[/sân bay|hẹn giờ|sáng mai|lúc \d/,'5.5'],[/bao nhiêu|giá/,'5.2'],[/vali|mấy người|loại xe/,'5.3'],[/điểm đón|đón ở đâu/,'5.6'],[/đặt xe|về nhà|đi /,'5.1'],
+ [/gửi hàng|ship|chuyển đồ|tủ lạnh/,'10.1'],[/gói|hội viên|plus|vip/,'9.1'],[/quên đồ|thất lạc|hỏi đáp/,'11.1'],[/sự cố|thu sai|khiếu nại/,'11.2'],[/nhân viên|tổng đài/,'11.3'],
+ [/món quen|như mọi khi/,'7.2'],[/chay|dị ứng|không cay|không hành/,'6.6'],[/cả phòng|nhóm|team/,'6.4'],[/ấm bụng|healthy|tâm trạng/,'6.5'],[/thanh toán|voucher|mã giảm/,'8.1'],
+ [/người.*k|ngân sách|dưới \d/,'6.2'],[/lẩu|ăn|quán|phở|bún|cơm|trà sữa/,'6.1']];
+function route(text){
+  const s=text.toLowerCase();
+  if(cur&&cur.turns[step]&&cur.turns[step].u){ // trùng lượt kế tiếp → chạy tiếp
+    const nx=cur.turns[step];
+    if(nx.voice||s.split(' ').filter(w=>w.length>2&&nx.u.toLowerCase().includes(w)).length>=2){playTurn(text);return}
+  }
+  const hit=ROUTES.find(([re])=>re.test(s));
+  if(hit){cur=UC.find(u=>u.id===hit[1]);step=0;resetChat();renderNav();renderInfo();renderIntent(null);renderHandoff(null);try{history.replaceState(null,'','#uc'+cur.id)}catch(e){};playTurn(text);return}
+  addHTML(`<div class="msg u">${esc(text)}</div>`);
+  addHTML(`<div class="msg b"><div class="b-text">Trong prototype này mình chạy theo kịch bản. Bạn thử một gợi ý bên dưới, hoặc nói về đặt xe, đặt món, gửi hàng, gói hội viên, CSKH.</div></div>`);
+}
+
+/* ---------- Events ---------- */
+document.addEventListener('click',e=>{
+  const t=e.target.closest('button'); if(!t)return;
+  if(t.dataset.f){filter=t.dataset.f;renderFilters();renderNav();const v=visible();if(v.length&&!v.includes(cur))select(v[0].id);return}
+  if(t.dataset.uc){select(t.dataset.uc);return}
+  if(t.dataset.goto){select(t.dataset.goto);return}
+  if(t.hasAttribute('data-restart')||t.id==='restart'){select(cur.id);return}
+  if(t.hasAttribute('data-next')){playTurn();return}
+  if(t.dataset.cta!=null){const c=REG[+t.dataset.cta];
+    if(c.n)openNative(c.n); else if(c.next)playTurn(); else if(c.say){ if(cur.turns[step])playTurn(c.say);}
+    else if(c.copy){const done=()=>toast('Đã sao chép link đặt nhóm');try{navigator.clipboard.writeText(c.copy).then(done,()=>toast(c.copy))}catch(err){toast(c.copy)}}
+    else if(c.toast)toast(c.toast);
+    return}
+  if(t.hasAttribute('data-back')){closeNative();return}
+  if(t.hasAttribute('data-confirmnative')){t.textContent='Đã xác nhận (demo)';t.disabled=true;renderHandoff(lastNative,'done');toast('Khách đã xác nhận trên luồng native');return}
+  if(t.dataset.star){const card=t.closest('[data-rating]');const n=+t.dataset.star;card.querySelectorAll('[data-star]').forEach(s=>s.classList.toggle('on',+s.dataset.star<=n));card.querySelector('[data-ratesend]').disabled=false;return}
+  if(t.hasAttribute('data-tagtoggle')){t.classList.toggle('p');return}
+  if(t.hasAttribute('data-ratesend')){const card=t.closest('[data-rating]');const n=card.querySelectorAll('.on').length;card.innerHTML=`<h4>Cảm ơn bạn đã đánh giá ${n}★</h4><div class="sub">Đánh giá đã gửi tới ${n>=4?'quán/tài xế':'đội chất lượng để xem xét'}.</div>`;showSugg();return}
+  if(t.hasAttribute('data-memdel')){const li=t.closest('.li');li.style.opacity=.4;li.querySelector('.l').innerHTML+=' <span class="tag bad">Đã xóa</span>';t.disabled=true;t.previousElementSibling.disabled=true;toast('Đã xóa ghi nhớ');return}
+  if(t.hasAttribute('data-memedit')){toast('Mở ô sửa ghi nhớ');return}
+  if(t.hasAttribute('data-sw')){t.setAttribute('aria-checked',t.getAttribute('aria-checked')==='true'?'false':'true');return}
+  if(t.hasAttribute('data-paynow')){const c=t.closest('[data-pay]');t.disabled=true;t.textContent='Đang thanh toán…';setTimeout(()=>{c.innerHTML=`<div class="row"><h4>Đã thanh toán ${vnd(70000)}</h4><span class="tag g">Thành công</span></div><div class="sub">Đơn #F-58402 · Cơm Tấm Sà Bì Chưởng đang chuẩn bị, giao dự kiến 18:55.</div>`;renderHandoff({screen:'Thanh toán trong chat',fields:[['Phương thức','Thẻ ATM •••• 4821'],['Đơn','#F-58402']],total:'70.000đ'},'done')},reduce?0:900);return}
+  if(t.hasAttribute('data-yes')){const c=t.closest('[data-confirm]');c.querySelector('.ctas').hidden=true;c.querySelector('[data-done]').hidden=false;return}
+  if(t.hasAttribute('data-no')){toast('Giữ nguyên tự động gia hạn');return}
+  if(t.id==='mic'){const nx=cur.turns[step];if(nx&&nx.voice)startVoice(nx);else startVoice({u:'Đặt xe về nhà'});return}
+});
+$('#comp').addEventListener('submit',e=>{e.preventDefault();const v=input.value.trim();if(!v){if(cur.turns[step])playTurn();return}input.value='';input.classList.remove('listen');$('#vhint').hidden=true;route(v)});
+$('#ucsel').addEventListener('change',e=>select(e.target.value));
+document.addEventListener('keydown',e=>{
+  if(e.target.matches('input,select,textarea'))return;
+  const v=visible(); const i=v.indexOf(cur);
+  if(e.key==='ArrowDown'){e.preventDefault();select((v[i+1]||v[0]).id)}
+  else if(e.key==='ArrowUp'){e.preventDefault();select((v[i-1]||v[v.length-1]).id)}
+  else if(e.key==='Enter'){if(cur.turns[step]){e.preventDefault();playTurn()}}
+});
+
+renderFilters();
+const fromHash=(location.hash||'').replace('#uc','');
+select(UC.find(u=>u.id===fromHash)?fromHash:'5.1');
+</script>
+
+</body></html>
